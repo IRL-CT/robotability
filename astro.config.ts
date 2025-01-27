@@ -4,7 +4,7 @@ import UnoCSS from 'unocss/astro';
 
 export default defineConfig({
   // used to generate images
-  site: 'https://robotability.cornell.edu', 
+  site: 'https://far-lab.github.io/robotability/', 
   trailingSlash: 'ignore',
   integrations: [sitemap(), UnoCSS({ injectReset: true })],
   vite: {
