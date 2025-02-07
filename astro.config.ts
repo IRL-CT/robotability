@@ -1,14 +1,15 @@
 import { defineConfig } from 'astro/config';
 import sitemap from '@astrojs/sitemap';
-import UnoCSS from 'unocss/astro';
 import react from '@astrojs/react';
+import tailwindcss from '@tailwindcss/vite'
 
 export default defineConfig({
   site: 'https://robotability.cornell.edu',
   base: '',
   trailingSlash: 'ignore',
-  integrations: [sitemap(), UnoCSS({ injectReset: true }), react()],
+  integrations: [sitemap(), react()],
   vite: {
+    plugins: [tailwindcss()],
     ssr: {
       noExternal: ['maplibre-gl', '@deck.gl/core', '@deck.gl/layers', '@deck.gl/mapbox']
     },
