@@ -1,18 +1,26 @@
-import { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import maplibregl from 'maplibre-gl';
-import 'maplibre-gl/dist/maplibre-gl.css';
 import { GeoJsonLayer } from '@deck.gl/layers';
 import { MapboxOverlay } from '@deck.gl/mapbox';
-import { DeploymentCard, Sidebar } from './components';
-import { LAYER_CONFIG, COLORS, DEPLOYMENTS } from './map-config';
-import DeploymentPopup from './deployment-popup';
+
+const COLORS = [
+  [165, 0, 38],    // Dark red
+  [215, 48, 39],   // Red
+  [244, 109, 67],  // Light red
+  [253, 174, 97],  // Orange-red
+  [254, 224, 144], // Light orange
+  [255, 255, 191], // Yellow
+  [217, 239, 139], // Light yellow-green
+  [166, 217, 106], // Light green
+  [102, 189, 99],  // Medium green
+  [26, 152, 80],   // Green
+  [0, 104, 55]     // Dark green
+];
 
 const RobotabilityMap = () => {
   const mapContainer = useRef(null);
   const [map, setMap] = useState(null);
   const [deckgl, setDeckgl] = useState(null);
-  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
-  const [selectedDeployment, setSelectedDeployment] = useState(null);
   const [mapData, setMapData] = useState({
     sidewalks: null,
     censusBlocks: null
@@ -22,10 +30,30 @@ const RobotabilityMap = () => {
     censusBlocks: true,
     deploymentLocations: true
   });
+  const [selectedDeployment, setSelectedDeployment] = useState('');
+
+  const DEPLOYMENTS = {
+    'Elmhurst, Queens': {
+      coords: [40.738536, -73.887267],
+      video: 'elmhurst_deployment.mp4'
+    },
+    'Sutton Place, Manhattan': {
+      coords: [40.758890, -73.958457],
+      video: 'sutton_place_deployment.mp4'
+    },
+    'Herald Square, Manhattan': {
+      coords: [40.748422, -73.988275],
+      video: 'herald_square_deployment.mp4'
+    },
+    'Jackson Heights, Queens': {
+      coords: [40.747379, -73.889690],
+      video: 'jackson_heights_deployment.mp4'
+    }
+  };
 
   // Initialize map
   useEffect(() => {
-    if (map || !mapContainer.current) return;
+    if (!mapContainer.current) return;
 
     const mapInstance = new maplibregl.Map({
       container: mapContainer.current,
@@ -37,25 +65,24 @@ const RobotabilityMap = () => {
     });
 
     mapInstance.on('load', () => {
-      console.log('Map loaded successfully');
       const overlay = new MapboxOverlay({
         interleaved: true,
         layers: [],
-        onClick: (info) => {
-          if (info.object && info.object.properties.name) {
-            const deploymentName = info.object.properties.name;
-            const deployment = DEPLOYMENTS[deploymentName];
-            if (deployment) {
-              const clickX = info.x;
-              const clickY = info.y;
-              setSelectedDeployment({
-                ...deployment,
-                popupPosition: [clickX, clickY]
-              });
-            }
-          } else {
-            setSelectedDeployment(null);
+        getTooltip: ({object}) => {
+          if (object) {
+            const score = (object.properties.score * 100).toFixed(1);
+            return {
+              html: `Score: ${score}%`,
+              style: {
+                backgroundColor: 'white',
+                fontSize: '0.8em',
+                padding: '4px 8px',
+                borderRadius: '4px',
+                boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+              }
+            };
           }
+          return null;
         }
       });
 
@@ -70,15 +97,14 @@ const RobotabilityMap = () => {
 
     setMap(mapInstance);
 
-    return () => {
-      mapInstance.remove();
-    };
+    return () => mapInstance.remove();
   }, []);
 
-  // Load GeoJSON data
+  // Load data
   useEffect(() => {
     const loadData = async () => {
       try {
+        // Load both datasets in parallel
         const [sidewalksRes, censusRes] = await Promise.all([
           fetch('/data/sidewalks.geojson'),
           fetch('/data/census.geojson')
@@ -101,7 +127,7 @@ const RobotabilityMap = () => {
     loadData();
   }, []);
 
-  // Update layers
+  // Update layers when visibility changes or data loads
   useEffect(() => {
     if (!deckgl || !mapData.sidewalks) return;
 
@@ -122,10 +148,11 @@ const RobotabilityMap = () => {
     }
 
     if (visibleLayers.deploymentLocations) {
+      // Create rings for each deployment location
       const createDeploymentRings = () => {
         const features = [];
         const numRings = 15;
-        const maxRadius = 0.004;
+        const maxRadius = 0.004; // roughly 400 meters
         const maxHeight = 150;
 
         Object.entries(DEPLOYMENTS).forEach(([name, info]) => {
@@ -134,7 +161,8 @@ const RobotabilityMap = () => {
             const radius = Math.cos(progress * Math.PI / 2) * maxRadius;
             const height = Math.sin(progress * Math.PI / 2) * maxHeight;
 
-            const points = 32;
+            // Create a circle for each ring
+            const points = 32; // number of points to approximate circle
             const coords = [];
             for (let j = 0; j <= points; j++) {
               const angle = (j / points) * Math.PI * 2;
@@ -147,8 +175,9 @@ const RobotabilityMap = () => {
               type: 'Feature',
               properties: {
                 name,
+                video: info.video,
                 height,
-                opacity: 0.3 * (1 - progress),
+                opacity: 0.3 * (1 - progress),  // fade out as it goes up
                 level: i
               },
               geometry: {
@@ -200,8 +229,8 @@ const RobotabilityMap = () => {
           lineWidthScale: 12,
           getLineColor: d => {
             const score = d.properties?.score ?? 0;
-            const colorIndex = Math.floor(score * (COLORS.length - 1));
-            return [...COLORS[colorIndex], 255];
+            const colorIndex = Math.floor(score * 2.5 *(COLORS.length - 1));
+            return [COLORS[colorIndex], 255];
           },
           getFillColor: d => {
             const score = d.properties?.score ?? 0;
@@ -215,67 +244,84 @@ const RobotabilityMap = () => {
     deckgl.setProps({ layers });
   }, [deckgl, mapData, visibleLayers]);
 
-  const zoomToDeployment = (deploymentName) => {
-    const deployment = DEPLOYMENTS[deploymentName];
-    if (!deployment || !map) return;
-
-    // Use flyTo for smooth transition
-    map.flyTo({
-      center: [deployment.coords[1], deployment.coords[0]],
-      zoom: 15,
-      duration: 1500,
-      essential: true
-    });
-
-    // Set the deployment after a small delay to let the animation complete
-    setTimeout(() => {
-      setSelectedDeployment({
-        ...deployment,
-        popupPosition: map.project([deployment.coords[1], deployment.coords[0]])
-      });
-    }, 1500);
-  };
-
   return (
-    <div className="relative h-screen w-full overflow-hidden">
-      <Sidebar 
-        isOpen={isSidebarOpen}
-        onToggle={() => setIsSidebarOpen(!isSidebarOpen)}
-        visibleLayers={visibleLayers}
-        setVisibleLayers={setVisibleLayers}
-        selectedDeployment={selectedDeployment}
-        setSelectedDeployment={setSelectedDeployment}
-        onDeploymentSelect={zoomToDeployment}
-        map={map}
-      />
+    <div className="flex h-screen w-full">
+      <div className="w-96 bg-white p-4 shadow-lg overflow-y-auto z-10">
+        <div className="mb-8">
+          <h3 className="text-xl font-semibold italic mb-4">THE ROBOTABILITY SCORE</h3>
+          <p className="mb-4">New York City deployment, September 2024</p>
+          <select 
+            className="w-full p-2 border rounded"
+            value={selectedDeployment}
+            onChange={(e) => {
+              setSelectedDeployment(e.target.value);
+              if (e.target.value && DEPLOYMENTS[e.target.value]) {
+                const [lat, lng] = DEPLOYMENTS[e.target.value].coords;
+                map?.flyTo({
+                  center: [lng, lat],
+                  zoom: 16,
+                  duration: 2000,
+                  pitch: 60
+                });
+              }
+            }}
+          >
+            <option value="">Select Deployment</option>
+            {Object.keys(DEPLOYMENTS).map(name => (
+              <option key={name} value={name}>{name}</option>
+            ))}
+          </select>
+        </div>
 
-      <div 
-        className={`
-          absolute inset-0 transition-all duration-300
-          ${isSidebarOpen ? 'lg:left-96' : 'left-0'}
-        `}
-      >
-        <div 
-          ref={mapContainer} 
-          className="h-full w-full"
-        />
+        <div className="mb-8">
+          <h3 className="text-lg font-semibold mb-4">Layers</h3>
+          <div className="space-y-2">
+            {Object.entries(visibleLayers).map(([key, value]) => (
+              <label key={key} className="flex items-center">
+                <input
+                  type="checkbox"
+                  checked={value}
+                  onChange={() => {
+                    setVisibleLayers(prev => ({
+                      ...prev,
+                      [key]: !prev[key]
+                    }));
+                  }}
+                  className="mr-2"
+                />
+                {key.replace(/([A-Z])/g, ' $1').trim()}
+              </label>
+            ))}
+          </div>
+        </div>
+
+        <div>
+          <h4 className="text-lg font-semibold mb-2">Score Legend</h4>
+          <div className="bg-gray-100 p-4 rounded flex flex-wrap justify-center gap-1">
+            {COLORS.map((color, i) => (
+              <div
+                key={i}
+                className="w-5 h-5"
+                style={{
+                  backgroundColor: `rgb(${color.join(',')})`
+                }}
+              />
+            ))}
+          </div>
+          <p className="text-center mt-2">Low → High</p>
+        </div>
       </div>
 
-      {isSidebarOpen && (
+      <div className="flex-1 relative">
         <div 
-          className="fixed inset-0 bg-black/50 z-30 lg:hidden"
-          onClick={() => setIsSidebarOpen(false)}
-          aria-hidden="true"
+          ref={mapContainer} 
+          className="absolute inset-0"
+          style={{
+            width: '100%',
+            height: '100%'
+          }}
         />
-      )}
-
-      {selectedDeployment && (
-        <DeploymentPopup
-          deployment={selectedDeployment}
-          onClose={() => setSelectedDeployment(null)}
-          position={selectedDeployment.popupPosition}
-        />
-      )}
+      </div>
     </div>
   );
 };
