@@ -1,7 +1,4 @@
 
-@import "tailwindcss";
-
-
 .card-shadow {
   filter: drop-shadow(7px 7px 0 rgb(0 0 0 / 1));
   transition: all;
