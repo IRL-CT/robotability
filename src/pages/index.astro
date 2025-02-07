@@ -50,43 +50,11 @@ const teamMembers = [
   description='A novel metric for quantifying urban robot navigation suitability'
 >
   <main class='bg-white p-6'>
-    <MobileSocials />
+    <!-- <MobileSocials /> -->
     <section id='about' class='flex flex-col lg:grid lg:grid-cols-2 gap-8 mt-4'>
       {/* Priority Mobile Content */}
       <div class="flex flex-col gap-8 lg:col-start-2 lg:row-start-1">
-        <Card>
-          <h2 class='text-2xl lg:text-4xl mb-4 dm-serif'>
-            The Robotability Score: Enabling Harmonious Robot Navigation on Urban Streets
-          </h2>
-          <h3 class='text-xl lg:text-2xl mb-4 dm-serif'>
-            CHI '25: ACM Conference on Human Factors in Computing Systems
-          </h3>
-          <div id="materials-buttons" class="flex flex-col gap-4">
-            <Button target={'_blank'} href='https://doi.org/10.1145/3706598.3714009'>
-              Read Paper &rarr;
-            </Button>
-            <Button target={'_blank'} href="https://github.com/FAR-LAB/robotability-nyc">
-              Code Repository &rarr;
-            </Button>
-          </div>
-        </Card>
-      </div>
-
-      {/* Video Section - Second on mobile, right column on desktop */}
-      <div class="flex flex-col gap-8 lg:col-start-2 lg:row-start-2">
-        <Card>
-          <div class='flex flex-col justify-between items-start gap-4'>
-            <LazyBoxVideo 
-              videoId="pwnw4hK1Oh4"
-              title="NYC Deployment of Robotability"
-            />
-          </div>
-        </Card>
-      </div>
-
-      {/* Main Content - Left column on desktop, after priority content on mobile */}
-      <div class="flex flex-col gap-8 lg:col-start-1 lg:row-start-1">
-        <Card>
+        <Card color="#f3f3f3">
           <h3 class='text-2xl lg:text-4xl mb-4 dm-serif'>
             What is The Robotability Score?
           </h3>
@@ -99,8 +67,51 @@ const teamMembers = [
           </p>
         </Card>
       </div>
+
+      {/* Video Section - Second on mobile, right column on desktop */}
+      <div class="flex flex-col gap-8 lg:col-start-2 lg:row-start-2">
+        <Card color="#f3f3f3">
+          <div class='flex flex-col justify-between items-start gap-4'>
+            <LazyBoxVideo 
+              videoId="pwnw4hK1Oh4"
+              title="NYC Deployment of Robotability"
+            />
+          </div>
+        </Card>
+      </div>
+
+      {/* Main Content - Left column on desktop, after priority content on mobile */}
+      <div class="flex flex-col gap-8 lg:col-start-1 lg:row-start-1">
+        <Card color="#f3f3f3">
+          <h2 class='text-2xl lg:text-4xl mb-4 dm-serif'>
+            The Robotability Score: Enabling Harmonious Robot Navigation on Urban Streets
+          </h2>
+          <div class="flex flex-row gap-4 mb-2">
+
+            <h3 class='text-xl lg:text-2xl mb-4 dm-serif' style="max-width: 450px;">
+              CHI '25: ACM Conference on Human Factors in Computing Systems
+            </h3>
+            <!-- add cornell logos -->
+            <div id="logos" class="flex flex-row gap-2">
+            <img src="/cornell_logo_simple_b31b1b.png" alt="Cornell University Logo" class="w-80 h-22" />
+            <img src="/cornell_tech.png" alt="Cornell Tech Logo" class="w-24 h-24" />
+            </div>
+
+          
+        </div>
+          <div id="materials-buttons" class="flex flex-row gap-8">
+            <Button color="white" target={'_blank'} href='https://doi.org/10.1145/3706598.3714009'>
+              Read Paper &rarr;
+            </Button>
+            <Button color="white" target={'_blank'} href="https://github.com/FAR-LAB/robotability-nyc">
+              Code Repository &rarr;
+            </Button>
+          </div>
+        </Card>
+
+      </div>
       <div class="flex flex-col gap-8 lg:col-start-1 lg:row-start-2">
-        <Card>
+        <Card color="#f3f3f3">
           <h2 class='text-2xl lg:text-4xl mb-8 dm-serif'>
             Key Features
           </h2>
@@ -123,7 +134,7 @@ const teamMembers = [
         </Card>
         
 
-        <Card>
+        <Card color="#f3f3f3">
           <h2 class='text-2xl lg:text-4xl mb-4 dm-serif'>
             Interactive Map
           </h2>
@@ -135,7 +146,7 @@ const teamMembers = [
           </Button>
         </Card>
 
-        <Card>
+        <Card color="#f3f3f3">
           <h2 class='text-2xl lg:text-4xl mb-6 dm-serif'>
             Project Team
           </h2>
