@@ -51,18 +51,57 @@ const teamMembers = [
 >
   <main class='bg-white p-6'>
     <MobileSocials />
-    <section id='about' class='grid md:grid-cols-2 gap-8 mt-4'>
-      <div class="flex flex-col gap-8">
+    <section id='about' class='flex flex-col lg:grid lg:grid-cols-2 gap-8 mt-4'>
+      {/* Priority Mobile Content */}
+      <div class="flex flex-col gap-8 lg:col-start-2 lg:row-start-1">
         <Card>
-          <h2 class='text-2xl md:text-4xl lg:text-6xl mb-4 dm-serif'>
-            What is The Robotability Score?
+          <h2 class='text-2xl lg:text-4xl mb-4 dm-serif'>
+            The Robotability Score: Enabling Harmonious Robot Navigation on Urban Streets
           </h2>
+          <h3 class='text-xl lg:text-2xl mb-4 dm-serif'>
+            CHI '25: ACM Conference on Human Factors in Computing Systems
+          </h3>
+          <div id="materials-buttons" class="flex flex-col gap-4">
+            <Button target={'_blank'} href='https://doi.org/10.1145/3706598.3714009'>
+              Read Paper &rarr;
+            </Button>
+            <Button target={'_blank'} href="https://github.com/FAR-LAB/robotability-nyc">
+              Code Repository &rarr;
+            </Button>
+          </div>
+        </Card>
+      </div>
+
+      {/* Video Section - Second on mobile, right column on desktop */}
+      <div class="flex flex-col gap-8 lg:col-start-2 lg:row-start-2">
+        <Card>
+          <div class='flex flex-col justify-between items-start gap-4'>
+            <LazyBoxVideo 
+              videoId="pwnw4hK1Oh4"
+              title="NYC Deployment of Robotability"
+            />
+          </div>
+        </Card>
+      </div>
+
+      {/* Main Content - Left column on desktop, after priority content on mobile */}
+      <div class="flex flex-col gap-8 lg:col-start-1 lg:row-start-1">
+        <Card>
+          <h3 class='text-2xl lg:text-4xl mb-4 dm-serif'>
+            What is The Robotability Score?
+          </h3>
+          <p class='poppins mb-4'>
+            The Robotability Score (R) is a novel metric that quantifies how suitable urban environments are for autonomous robot navigation. Through expert interviews and surveys, we've developed a standardized framework for evaluating urban landscapes to reduce uncertainty in robot deployment while respecting established mobility patterns.  
+          </p>
+          
           <p class='poppins'>
-            The Robotability Score (R) is a novel metric that quantifies how suitable urban environments are for autonomous robot navigation. Through expert interviews and surveys, we've developed a standardized framework for evaluating urban landscapes to reduce uncertainty in robot deployment while respecting established mobility patterns.
+            Streets with high Robotability are both more navigable for robots and less disruptive to pedestrians. We've constructed a proof-of-concept Robotability Score for New York City using a wealth of open datasets from NYC OpenData, and inferred pedestrian distributions from a dataset of 8 million dashcam images taken around the city in late 2023.
           </p>
         </Card>
+      </div>
+      <div class="flex flex-col gap-8 lg:col-start-1 lg:row-start-2">
         <Card>
-          <h2 class='text-2xl md:text-4xl mb-8 dm-serif'>
+          <h2 class='text-2xl lg:text-4xl mb-8 dm-serif'>
             Key Features
           </h2>
           <ul class='flex gap-4 flex-wrap'>
@@ -82,19 +121,22 @@ const teamMembers = [
             Our findings reveal that these factors collectively account for 48% of the total Robotability Score. Areas with highest R are 4.3 times more "robotable" than areas with lowest R.
           </p>
         </Card>
+        
+
         <Card>
-          <h2 class='text-2xl md:text-4xl mb-4 dm-serif'>
+          <h2 class='text-2xl lg:text-4xl mb-4 dm-serif'>
             Interactive Map
           </h2>
           <p class='poppins mb-4'>
             Explore the spatial distribution of Robotability Scores across New York City's diverse urban landscape.
           </p>
-          <Button target={'_blank'} href='https://example.com/map'>
+          <Button target={'_blank'} href='map'>
             Open Interactive Map &rarr;
           </Button>
         </Card>
+
         <Card>
-          <h2 class='text-2xl md:text-4xl mb-6 dm-serif'>
+          <h2 class='text-2xl lg:text-4xl mb-6 dm-serif'>
             Project Team
           </h2>
           <div class="flex justify-center items-start w-full">
@@ -121,16 +163,6 @@ const teamMembers = [
           </div>
         </Card>
       </div>
-      
-      <Card>
-        <div class='flex flex-col justify-between items-start gap-4'>
-          <h2 class='text-2xl md:text-4xl mb-4'>Robot Navigation Study</h2>
-          <LazyBoxVideo 
-            boxShareLink="robotability-video"
-            title="NYC Deployment of Robotability"
-          />
-        </div>
-      </Card>
     </section>
   </main>
 </Layout>

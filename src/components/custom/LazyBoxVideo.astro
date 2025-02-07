@@ -1,26 +1,27 @@
 ---
-// LazyBoxVideo.astro
+// LazyYouTubeVideo.astro
 interface Props {
   title?: string;
+  videoId: string; // Required YouTube video ID
 }
 
 const { 
-  title = "Robot Navigation Study" 
+  title = "Robot Navigation Study",
+  videoId
 } = Astro.props;
 
-// Add parameters to hide UI elements:
-// - nodownload=1 prevents download
-// - boxui=none removes the Box UI elements
-// - showui=0 hides additional controls
-const embedUrl = "https://cornell.app.box.com/embed/v/robotability-video?nodownload=1&boxui=none&showui=0";
+// YouTube embed URL with privacy-enhanced mode and minimal UI
+const embedUrl = `https://www.youtube-nocookie.com/embed/${videoId}?rel=0&modestbranding=1`;
 ---
 
 <div class="relative aspect-video w-full">
   <div class="w-full h-full">
     <iframe
       src={embedUrl}
+      title={title}
       class="w-full h-full min-h-[400px]"
       frameborder="0"
+      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
       allowfullscreen
     ></iframe>
   </div>
