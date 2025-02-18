@@ -72,10 +72,10 @@ const teamMembers = [
             </div>
           </div>
           <div id="materials-buttons" class="poppins text-lg flex flex-row gap-8">
-            <Button color="white" target={'_blank'} href='https://doi.org/10.1145/3706598.3714009' class="no-underline">
+            <Button color="#FFE1E1" target={'_blank'} href='https://doi.org/10.1145/3706598.3714009' class="no-underline">
               <span class="font-bold no-underline hover:no-underline">Read Paper &rarr;</span>
             </Button>
-            <Button color="white" target={'_blank'} href="https://github.com/FAR-LAB/robotability-nyc" class="no-underline">
+            <Button color="#FFE1E1" target={'_blank'} href="https://github.com/FAR-LAB/robotability-nyc" class="no-underline">
               <span class="font-bold no-underline hover:no-underline">Code Repository &rarr;</span>
             </Button>
           </div>
@@ -110,7 +110,7 @@ const teamMembers = [
         <div class='flex gap-4 flex-wrap'>
           {
             keyFeatures.map((item) => (
-              <Pill>
+              <Pill color="#FFE1E1">
                 <span class='sanchez'>
                   {item.name}: {item.weight}
                 </span>
@@ -128,9 +128,9 @@ const teamMembers = [
           Interactive Map
         </h2>
         <p class='poppins mb-4'>
-          Explore the spatial distribution of Robotability Scores across New York City's diverse urban landscape.
+          Explore the spatial distribution of Robotability Scores across New York City from our proof-of-concept deployment.
         </p>
-        <Button target={'_blank'} href='map'>
+        <Button color='#FFE1E1' target={'_blank'} href='map'>
           Open Interactive Map &rarr;
         </Button>
       </Card>
