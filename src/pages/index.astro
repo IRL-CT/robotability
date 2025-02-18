@@ -62,15 +62,15 @@ const teamMembers = [
           <h2 class='lg:text-4xl mb-12 dm-serif'>
             Enabling Harmonious Robot Navigation on Urban Streets
           </h2>
-          <div class="flex justify-between items-center mb-8">
-            <h3 class='text-xl lg:text-2xl dm-serif max-w-[450px]'>
+            <div class="flex flex-col lg:flex-row justify-between items-center mb-8">
+            <h3 class='text-xl lg:text-2xl dm-serif max-w-[450px] mb-4 lg:mb-0'>
               @ CHI '25: ACM Conference on Human Factors in Computing Systems
             </h3>
-            <div id="logos" class="flex items-center gap-4">
-              <img src="/cornell_logo_simple_b31b1b.png" alt="Cornell University Logo" class="h-24 w-auto" />
-              <img src="/cornell_tech.png" alt="Cornell Tech Logo" class="h-24 w-auto" />
+            <div id="logos" class="flex items-center gap-4 flex-wrap justify-center lg:justify-start">
+              <img src="/cornell_logo_simple_b31b1b.png" alt="Cornell University Logo" class="h-16 lg:h-24 w-auto" />
+              <img src="/cornell_tech.png" alt="Cornell Tech Logo" class="h-16 lg:h-24 w-auto" />
             </div>
-          </div>
+            </div>
           <div id="materials-buttons" class="poppins text-lg flex flex-row gap-8">
             <Button color="#FFE1E1" target={'_blank'} href='https://doi.org/10.1145/3706598.3714009' class="no-underline">
               <span class="font-bold no-underline hover:no-underline">Read Paper &rarr;</span>
@@ -130,7 +130,7 @@ const teamMembers = [
         <p class='poppins mb-4'>
           Explore the spatial distribution of Robotability Scores across New York City from our proof-of-concept deployment.
         </p>
-        <Button color='#FFE1E1' target={'_blank'} href='map'>
+        <Button color='#FFE1E1' href='map'>
           Open Interactive Map &rarr;
         </Button>
       </Card>
@@ -140,23 +140,23 @@ const teamMembers = [
           Project Team
         </h2>
         <div class="flex justify-center items-start w-full">
-          <div class="flex justify-between w-full px-8">
+          <div class="grid grid-cols-2 lg:grid-cols-4 gap-6 lg:gap-8 w-full px-4 lg:px-8">
             {
               teamMembers.map((member) => (
-                <a 
-                  href={member.link} 
-                  class="flex flex-col items-center group hover:transform hover:scale-105 transition-transform no-underline"
-                >
-                  <div class="w-32 h-32 rounded-full overflow-hidden border-2 border-white mb-2">
-                    <img 
-                      src={member.image} 
-                      alt={member.name}
-                      class="w-full h-full object-cover"
-                    />
-                  </div>
-                  <h3 class="poppins text-xl text-center no-underline mb-0">{member.name}</h3>
-                  <p class="poppins text-md text-gray-800 text-center max-w-[140px]">{member.role}</p>
-                </a>
+          <a 
+            href={member.link} 
+            class="flex flex-col items-center group hover:transform hover:scale-105 transition-transform no-underline"
+          >
+            <div class="w-28 h-28 lg:w-32 lg:h-32 rounded-full overflow-hidden border-2 border-white mb-2">
+              <img 
+                src={member.image} 
+                alt={member.name}
+                class="w-full h-full object-cover"
+              />
+            </div>
+            <h3 class="poppins text-lg lg:text-xl text-center no-underline mb-0">{member.name}</h3>
+            <p class="poppins text-sm lg:text-md text-gray-800 text-center max-w-[140px]">{member.role}</p>
+          </a>
               ))
             }
           </div>

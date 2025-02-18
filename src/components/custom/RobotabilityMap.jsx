@@ -25,6 +25,7 @@ const RobotabilityMap = () => {
   const [map, setMap] = useState(null);
   const [deckgl, setDeckgl] = useState(null);
   const [firstLabelLayerId, setFirstLabelLayerId] = useState(null);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
 
   // Add a ref for the sidebar
   const sidebarRef = useRef(null);
@@ -403,115 +404,165 @@ const RobotabilityMap = () => {
 
     }, [deckgl, mapData, visibleLayers, map, firstLabelLayerId]);
 
-    // Modify the return statement for responsive layout
     return (
-    <div className="h-screen w-full flex flex-col lt-md:flex-col md:flex-row">
-      {/* Controls Container - Sidebar on desktop, Top section on mobile */}
-      <div 
-        ref={sidebarRef} 
-        className="
-          md:w-96 md:h-full 
-          lt-md:w-full lt-md:h-auto 
-          bg-white p-4 shadow-lg overflow-y-auto z-10
-        "
-      >
-        <div className="mb-4">
-          <h3 className="poppins text-xl font-semibold italic mb-4">Robotability Proof-of-Concept</h3>
-          <p className="poppins mb-4">New York City, September 2024</p>
-          <select 
-            className="poppins w-full p-2 border rounded"
-            value={selectedDeployment}
-            onChange={(e) => {
-              setSelectedDeployment(e.target.value);
-              if (e.target.value) {
-                handleDeploymentSelect(e.target.value);
-              } else {
-                setActiveVideo(null);
-              }
-            }}
-          >
-            <option value="">Select Deployment</option>
-            {Object.keys(DEPLOYMENTS).map(name => (
-              <option key={name} value={name}>{name}</option>
-            ))}
-          </select>
-        </div>
-
-        <div className="mb-4">
-          <h3 className="poppins text-lg font-semibold mb-2">Layers</h3>
-          <div className="
-            flex flex-wrap gap-4 
-            lt-md:justify-start md:flex-col
-          ">
-            {Object.entries(visibleLayers).map(([key, value]) => (
-              <label 
-                key={key} 
-                className="
-                  poppins flex items-center 
-                  lt-md:w-[calc(50%-0.5rem)] md:w-full
-                "
-              >
-                <input
-                  type="checkbox"
-                  checked={value}
-                  onChange={() => {
-                    setVisibleLayers(prev => ({
-                      ...prev,
-                      [key]: !prev[key]
-                    }));
-                  }}
-                  className="mr-2"
-                />
-                {layerNames[key]}
-              </label>
-            ))}
-          </div>
-        </div>
-
-        {/* Score Legend - Only visible on desktop */}
-        <div className="lt-md:hidden md:block mb-8">
-          <h4 className="poppins text-lg font-semibold mb-2">Score Legend</h4>
-          <div className="bg-gray-100 p-4 rounded flex flex-wrap justify-center gap-1">
-            {COLORS.map((color, i) => (
-              <div
-                key={i}
-                className="w-5 h-5"
-                style={{
-                  backgroundColor: `rgb(${color.join(',')})`
-                }}
-              />
-            ))}
-          </div>
-          <p className="poppins text-center mt-2">Low Percentile → High Percentile</p>
-        </div>
-      </div>
-
-      {/* Map Container */}
-      <div className="flex-1 relative">
+      <div className="h-screen w-full flex flex-col lt-md:flex-col md:flex-row relative">
+        {/* Home Button. Put to the right of the sidebar toggle button */}
+        <a
+          href="/"
+          className="
+            absolute top-4 right-4
+            flex flex-col items-center
+            bg-white rounded-lg p-2 shadow-lg z-30
+          "
+        >
+          <img 
+            src="/favicon.png" 
+            alt="Home" 
+            className="w-24 h-24 rounded-full object-cover"
+          />
+          <span className="poppins text-sm mt-1">Home</span>
+        </a>
+  
+        {/* Controls Container - Sidebar on desktop, Top section on mobile */}
         <div 
-          ref={mapContainer} 
-          className="absolute inset-0"
-          style={{
-            width: '100%',
-            height: '100%'
-          }}
-        />
-      </div>
-
-      {/* Video Footer - Only visible on mobile when video is active */}
-      {activeVideo && (
-        <div className="
-          lt-md:block md:hidden
-          w-full bg-white shadow-lg
-          border-t border-gray-200
-          h-auto max-h-[40vh]
-          z-20
-        ">
-          <VideoPlayer deployment={activeVideo} />
+          ref={sidebarRef} 
+          className={`
+            absolute left-0 top-0
+            md:h-full lt-md:h-auto 
+            bg-white shadow-lg z-10
+            transition-all duration-300
+            lt-md:w-full
+            md:w-96
+            ${!isSidebarOpen ? 'md:-translate-x-full' : ''}
+          `}
+        >
+          {/* Sidebar Toggle Button - Only on desktop */}
+          <button
+            onClick={() => {
+              setIsSidebarOpen(!isSidebarOpen);
+              
+            }}
+            className="
+              md:block lt-md:hidden
+              absolute -right-14 top-4
+              bg-white rounded-lg p-2
+              shadow-lg z-30
+            "
+          >
+            <span className="poppins text-xl">
+              {isSidebarOpen ? '←' : '→'}
+            </span>
+          </button>
+  
+          {/* Sidebar Content */}
+          <div className={`
+            p-4 overflow-x-hidden
+            transition-all duration-300
+            ${!isSidebarOpen ? 'md:opacity-0 md:invisible md:w-0 md:-translate-x-full' : 'md:opacity-100 md:visible md:w-auto md:translate-x-0'}
+          `}>
+            <div className="mb-4">
+              <h3 className="poppins text-xl font-semibold italic mb-4">Robotability Proof-of-Concept</h3>
+              <p className="poppins mb-4">New York City, September 2024</p>
+              <select 
+                className="poppins w-full p-2 border rounded"
+                value={selectedDeployment}
+                onChange={(e) => {
+                  setSelectedDeployment(e.target.value);
+                  if (e.target.value) {
+                    handleDeploymentSelect(e.target.value);
+                  } else {
+                    setActiveVideo(null);
+                  }
+                }}
+              >
+                <option value="">Select Deployment</option>
+                {Object.keys(DEPLOYMENTS).map(name => (
+                  <option key={name} value={name}>{name}</option>
+                ))}
+              </select>
+            </div>
+  
+            <div className="mb-4">
+              <h3 className="poppins text-lg font-semibold mb-2">Layers</h3>
+              <div className="
+                flex flex-wrap gap-4 
+                lt-md:justify-start md:flex-col
+              ">
+                {Object.entries(visibleLayers).map(([key, value]) => (
+                  <label 
+                    key={key} 
+                    className="
+                      poppins flex items-center 
+                      lt-md:w-[calc(50%-0.5rem)] md:w-full
+                    "
+                  >
+                    <input
+                      type="checkbox"
+                      checked={value}
+                      onChange={() => {
+                        setVisibleLayers(prev => ({
+                          ...prev,
+                          [key]: !prev[key]
+                        }));
+                      }}
+                      className="mr-2"
+                    />
+                    {layerNames[key]}
+                  </label>
+                ))}
+              </div>
+            </div>
+  
+            {/* Score Legend - Only visible on desktop */}
+            <div className="lt-md:hidden md:block mb-8">
+              <h4 className="poppins text-lg font-semibold mb-2">Score Legend</h4>
+              <div className="bg-gray-100 p-4 rounded flex flex-wrap justify-center gap-1">
+                {COLORS.map((color, i) => (
+                  <div
+                    key={i}
+                    className="w-5 h-5"
+                    style={{
+                      backgroundColor: `rgb(${color.join(',')})`
+                    }}
+                  />
+                ))}
+              </div>
+              <p className="poppins text-center mt-2">Low Percentile → High Percentile</p>
+            </div>
+          </div>
         </div>
-      )}
-    </div>
-  );
-};
-
+  
+        {/* Map Container */}
+        <div className={`
+          relative
+          transition-all duration-300
+          ${!isSidebarOpen ? 'md:w-full' : 'md:w-[calc(100%-24rem)] md:ml-96'}
+          lt-md:w-full
+          lt-md:flex-1
+        `}>
+          <div 
+            ref={mapContainer} 
+            className="absolute inset-0"
+            style={{
+              width: '100%',
+              height: '100%'
+            }}
+          />
+        </div>
+  
+        {/* Video Footer - Only visible on mobile when video is active */}
+        {activeVideo && (
+          <div className="
+            lt-md:block md:hidden
+            w-full bg-white shadow-lg
+            border-t border-gray-200
+            h-auto max-h-[40vh]
+            z-20
+          ">
+            <VideoPlayer deployment={activeVideo} />
+          </div>
+        )}
+      </div>
+    );
+  };
 export default RobotabilityMap;
