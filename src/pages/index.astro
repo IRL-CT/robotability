@@ -56,10 +56,10 @@ const teamMembers = [
       {/* Main Content */}
       <Card color="#f3f3f3">
         <div class="p-6">
-          <h2 class='lg:text-5xl mb-0 dm-serif'>
-            The Robotability Score: 
-          </h2>
-          <h2 class='lg:text-4xl mb-12 dm-serif'>
+            <h2 class='lg:text-5xl mb-[-1rem] dm-serif underline'>
+              The Robotability Score
+            </h2>
+          <h2 class='lg:text-3xl mb-12 dm-serif'>
             Enabling Harmonious Robot Navigation on Urban Streets
           </h2>
             <div class="flex flex-col lg:flex-row justify-between items-center mb-8">
@@ -140,23 +140,23 @@ const teamMembers = [
           Project Team
         </h2>
         <div class="flex justify-center items-start w-full">
-          <div class="grid grid-cols-2 lg:grid-cols-4 gap-6 lg:gap-8 w-full px-4 lg:px-8">
+          <div class="flex justify-between w-full px-8">
             {
               teamMembers.map((member) => (
-          <a 
-            href={member.link} 
-            class="flex flex-col items-center group hover:transform hover:scale-105 transition-transform no-underline"
-          >
-            <div class="w-28 h-28 lg:w-32 lg:h-32 rounded-full overflow-hidden border-2 border-white mb-2">
-              <img 
-                src={member.image} 
-                alt={member.name}
-                class="w-full h-full object-cover"
-              />
-            </div>
-            <h3 class="poppins text-lg lg:text-xl text-center no-underline mb-0">{member.name}</h3>
-            <p class="poppins text-sm lg:text-md text-gray-800 text-center max-w-[140px]">{member.role}</p>
-          </a>
+                <a 
+                  href={member.link} 
+                  class="flex flex-col items-center group hover:transform hover:scale-105 transition-transform no-underline"
+                >
+                  <div class="w-32 h-32 rounded-full overflow-hidden border-2 border-white mb-2">
+                    <img 
+                      src={member.image} 
+                      alt={member.name}
+                      class="w-full h-full object-cover"
+                    />
+                  </div>
+                  <h3 class="poppins text-xl text-center no-underline mb-0">{member.name}</h3>
+                  <p class="poppins text-md text-gray-800 text-center max-w-[140px]">{member.role}</p>
+                </a>
               ))
             }
           </div>
