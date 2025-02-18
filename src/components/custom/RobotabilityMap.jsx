@@ -17,10 +17,18 @@ const COLORS = [
   [0, 104, 55]     // Dark green
 ];
 
+
+
 const RobotabilityMap = () => {
+
   const mapContainer = useRef(null);
   const [map, setMap] = useState(null);
   const [deckgl, setDeckgl] = useState(null);
+  const [firstLabelLayerId, setFirstLabelLayerId] = useState(null);
+
+  // Add a ref for the sidebar
+  const sidebarRef = useRef(null);
+  const [sidebarWidth, setSidebarWidth] = useState(0);
   const [mapData, setMapData] = useState({
     sidewalks: null,
     censusBlocks: null
@@ -31,25 +39,70 @@ const RobotabilityMap = () => {
     deploymentLocations: true
   });
   const [selectedDeployment, setSelectedDeployment] = useState('');
+  const [activeVideo, setActiveVideo] = useState(null);
+  const [hoverInfo, setHoverInfo] = useState(null);
 
   const DEPLOYMENTS = {
     'Elmhurst, Queens': {
       coords: [40.738536, -73.887267],
-      video: 'elmhurst_deployment.mp4'
+      videoId: 'o52MZ1AHyjA',
+      startTime: 44,
+      endTime: 62
     },
     'Sutton Place, Manhattan': {
       coords: [40.758890, -73.958457],
-      video: 'sutton_place_deployment.mp4'
+      videoId: 'o52MZ1AHyjA',
+      startTime: 21,
+      endTime: 43
     },
     'Herald Square, Manhattan': {
       coords: [40.748422, -73.988275],
-      video: 'herald_square_deployment.mp4'
+      videoId: 'o52MZ1AHyjA',
+      startTime: 63,
+      endTime: 83
     },
     'Jackson Heights, Queens': {
       coords: [40.747379, -73.889690],
-      video: 'jackson_heights_deployment.mp4'
+      videoId: 'o52MZ1AHyjA',
+      startTime: 85,
+      endTime: 100
     }
   };
+
+  const VideoPlayer = React.memo(({ deployment }) => {
+    const embedUrl = `https://www.youtube-nocookie.com/embed/${deployment.videoId}?start=${deployment.startTime}&end=${deployment.endTime}&rel=0&modestbranding=1&autoplay=1`;
+    
+    return (
+      <div className="bg-white rounded-lg overflow-hidden">
+        <div className="p-3 border-b">
+          <div className="flex justify-between items-center">
+            <h3 className="text-sm font-medium">{deployment.name}</h3>
+            <button 
+              onClick={() => setActiveVideo(null)}
+              className="text-gray-500 hover:text-gray-700"
+            >
+              ✕
+            </button>
+          </div>
+        </div>
+        <div className="relative aspect-video">
+          <iframe
+            key={`${deployment.videoId}-${deployment.startTime}`}
+            src={embedUrl}
+            title={deployment.name}
+            className="w-full h-full"
+            style={{ minHeight: '200px' }}
+            frameBorder="0"
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+            allowFullScreen
+          />
+        </div>
+      </div>
+    );
+  }, (prevProps, nextProps) => {
+    // Only re-render if the deployment name changes
+    return prevProps.deployment.name === nextProps.deployment.name;
+  });
 
   // dictionary to give layers nice names 
   const layerNames = {
@@ -58,62 +111,143 @@ const RobotabilityMap = () => {
     deploymentLocations: 'Deployment Locations'
   };
 
+
   // In your map initialization:
-const [firstLabelLayerId, setFirstLabelLayerId] = useState(null);
-
-useEffect(() => {
-  if (!mapContainer.current) return;
-
-  const mapInstance = new maplibregl.Map({
-    container: mapContainer.current,
-    style: 'https://basemaps.cartocdn.com/gl/positron-gl-style/style.json',
-    center: [-73.9712, 40.7831],
-    zoom: 12,
-    pitch: 45,
-    bearing: 0
-  });
-
-  mapInstance.on('style.load', () => {
-    // Find the first label layer
-    const firstLabelLayer = mapInstance.getStyle().layers.find(layer => 
-      layer.type === 'symbol' || layer.id.includes('label') || layer.id.includes('place')
-    );
-    setFirstLabelLayerId(firstLabelLayer.id);
-
-    const overlay = new MapboxOverlay({
-      interleaved: true,
-      layers: [],
-      getTooltip: ({object}) => {
-        if (object) {
-          const score = (object.properties.score * 100).toFixed(1);
-          return {
-            html: `Score: ${score}%`,
-            style: {
-              backgroundColor: 'white',
-              fontSize: '0.8em',
-              padding: '4px 8px',
-              borderRadius: '4px',
-              boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
-            }
-          };
-        }
-        return null;
+  useEffect(() => {
+    const updateSidebarWidth = () => {
+      if (sidebarRef.current) {
+        setSidebarWidth(sidebarRef.current.offsetWidth);
       }
+    };
+  
+    updateSidebarWidth();
+    window.addEventListener('resize', updateSidebarWidth);
+    return () => window.removeEventListener('resize', updateSidebarWidth);
+  }, []);
+
+  // At the start of your component
+  useEffect(() => {
+    if (!mapContainer.current) return;
+  
+    // Create tooltip div
+    const tooltip = document.createElement('div');
+    tooltip.style.display = 'none';
+    tooltip.style.position = 'absolute';
+    tooltip.style.pointerEvents = 'none';
+    tooltip.style.zIndex = '100';
+    tooltip.style.backgroundColor = 'white';
+    tooltip.style.padding = '8px 12px';
+    tooltip.style.borderRadius = '6px';
+    tooltip.style.boxShadow = '0 2px 4px rgba(0,0,0,0.1)';
+    document.body.appendChild(tooltip);
+  
+    // Initialize map
+    const mapInstance = new maplibregl.Map({
+      container: mapContainer.current,
+      style: 'https://basemaps.cartocdn.com/gl/positron-gl-style/style.json',
+      center: [-73.9712, 40.7831],
+      zoom: 12,
+      pitch: 45,
+      bearing: 0
     });
+  
+    mapInstance.on('style.load', () => {
+      const firstLabelLayer = mapInstance.getStyle().layers.find(layer => 
+        layer.type === 'symbol' || layer.id.includes('label') || layer.id.includes('place')
+      );
+      setFirstLabelLayerId(firstLabelLayer.id);
+  
+      const overlay = new MapboxOverlay({
+        interleaved: true,
+        layers: [],
+        onHover: (info) => {
+          if (info.object) {
+            const x = info.x + sidebarWidth;
+            const y = info.y;
+            
+            tooltip.style.display = 'block';
+            tooltip.style.left = `${x}px`;
+            tooltip.style.top = `${y}px`;
+            tooltip.style.transform = 'translate(-50%, -100%)';
+            tooltip.style.marginTop = '-10px';
+  
+            if (info.layer.id === 'deployment-zones' && info.object.properties?.name) {
+              tooltip.innerHTML = `
+                <div class="font-semibold">${info.object.properties.name}</div>
+                <div class="text-sm text-gray-600">Click to view deployment</div>
+              `;
+            } 
+            else if (info.layer.id === 'sidewalks' && info.object.properties?.score) {
+              tooltip.innerHTML = `Score: ${(info.object.properties.score * 100).toFixed(1)}%`;
+            }
+          } else {
+            tooltip.style.display = 'none';
+          }
+        }
+      });
+  
+      mapInstance.addControl(overlay);
+      setDeckgl(overlay);
+    });
+  
+    setMap(mapInstance);
+  
+    // Cleanup
+    return () => {
+      mapInstance.remove();
+      document.body.removeChild(tooltip);
+    };
+  }, [sidebarWidth]);
 
-    mapInstance.addControl(overlay);
-    setDeckgl(overlay);
 
-    mapInstance.addControl(
-      new maplibregl.NavigationControl(),
-      'top-right'
-    );
-  });
 
-  setMap(mapInstance);
+  // Deployment click handler
+  const handleDeploymentSelect = React.useCallback((deploymentName) => {
+    if (deploymentName && DEPLOYMENTS[deploymentName]) {
+      const [lat, lng] = DEPLOYMENTS[deploymentName].coords;
+      
+      // Only update video if it's a different deployment
+      if (!activeVideo || activeVideo.name !== deploymentName) {
+        const deployment = DEPLOYMENTS[deploymentName];
+        setActiveVideo({
+          name: deploymentName,
+          videoId: deployment.videoId,
+          startTime: deployment.startTime,
+          endTime: deployment.endTime
+        });
+      }
+      
+      map?.flyTo({
+        center: [lng, lat],
+        zoom: 16,
+        duration: 2000,
+        pitch: 60
+      });
+    }
+  }, [map, activeVideo]);
 
-  return () => mapInstance.remove();
-}, []);
+  const handleDeploymentClick = ({object}) => {
+    if(object?.properties?.name) {
+      const deploymentName = object.properties.name;
+      const deployment = DEPLOYMENTS[deploymentName];
+      
+      if (deployment && (!activeVideo || activeVideo.name !== deploymentName)) {
+        setActiveVideo({
+          name: deploymentName,
+          videoId: deployment.videoId,
+          startTime: deployment.startTime,
+          endTime: deployment.endTime
+        });
+        
+        map?.flyTo({
+          center: [deployment.coords[1], deployment.coords[0]],
+          zoom: 16,
+          duration: 2000,
+          pitch: 60
+        });
+      }
+    }
+  };
 
   // Load data
   useEffect(() => {
@@ -169,7 +303,7 @@ useEffect(() => {
         const features = [];
         const numRings = 15;
         const maxRadius = 0.004; // roughly 400 meters
-        const maxHeight = 150;
+        const maxHeight = 250;
 
         Object.entries(DEPLOYMENTS).forEach(([name, info]) => {
           for (let i = 0; i < numRings; i++) {
@@ -215,6 +349,7 @@ useEffect(() => {
           id: 'deployment-zones',
           data: createDeploymentRings(),
           pickable: true,
+          onClick: handleDeploymentClick,
           stroked: false,
           filled: true,
           extruded: true,
@@ -222,8 +357,9 @@ useEffect(() => {
           getElevation: d => d.properties.height,
           getFillColor: d => [0, 128, 255, 255 * d.properties.opacity],
           parameters: {
-            depthTest: true,
+            depthTest: false,
             depthMask: true,
+            zIndex: 2,
             blend: true,
             blendFunc: [
               WebGLRenderingContext.SRC_ALPHA,
@@ -253,6 +389,10 @@ useEffect(() => {
             const score = d.properties?.score ?? 0;
             const colorIndex = Math.floor(score * (COLORS.length - 1));
             return [...COLORS[colorIndex], 255];
+          },
+          parameters: {
+            depthTest: false,
+            zIndex: 1
           }
         })
       );
@@ -261,88 +401,95 @@ useEffect(() => {
     // Update deck.gl layers
     deckgl.setProps({ layers });
 
-    }, [deckgl, mapData, visibleLayers, map]);
+    }, [deckgl, mapData, visibleLayers, map, firstLabelLayerId]);
 
-  return (
-    <div className="flex h-screen w-full">
-      <div className="w-96 bg-white p-4 shadow-lg overflow-y-auto z-10">
-        <div className="mb-8">
-          <h3 className="poppins text-xl font-semibold italic mb-4">Robotability Proof-of-Concept</h3>
-          <p className="poppins mb-4">New York City, September 2024</p>
-          <select 
-            className="poppins w-full p-2 border rounded"
-            value={selectedDeployment}
-            onChange={(e) => {
-              setSelectedDeployment(e.target.value);
-              if (e.target.value && DEPLOYMENTS[e.target.value]) {
-                const [lat, lng] = DEPLOYMENTS[e.target.value].coords;
-                map?.flyTo({
-                  center: [lng, lat],
-                  zoom: 16,
-                  duration: 2000,
-                  pitch: 60
-                });
-              }
-            }}
-          >
-            <option value="">Select Deployment</option>
-            {Object.keys(DEPLOYMENTS).map(name => (
-              <option key={name} value={name}>{name}</option>
-            ))}
-          </select>
-        </div>
-
-        <div className="mb-8">
-          <h3 className="poppins text-lg font-semibold mb-4">Layers</h3>
-          <div className="space-y-2">
-            {Object.entries(visibleLayers).map(([key, value]) => (
-              <label key={key} className="poppins flex items-center">
-                <input
-                  type="checkbox"
-                  checked={value}
-                  onChange={() => {
-                    setVisibleLayers(prev => ({
-                      ...prev,
-                      [key]: !prev[key]
-                    }));
+    return (
+      <div className="flex h-screen w-full">
+        <div ref={sidebarRef} className="w-96 bg-white p-4 shadow-lg overflow-y-auto z-10">
+          <div className="mb-8">
+            <h3 className="poppins text-xl font-semibold italic mb-4">Robotability Proof-of-Concept</h3>
+            <p className="poppins mb-4">New York City, September 2024</p>
+            <select 
+              className="poppins w-full p-2 border rounded"
+              value={selectedDeployment}
+              onChange={(e) => {
+                setSelectedDeployment(e.target.value);
+                if (e.target.value) {
+                  handleDeploymentSelect(e.target.value);
+                } else {
+                  setActiveVideo(null); // Only clear when explicitly selecting blank option
+                }
+              }}
+            >
+              <option value="">Select Deployment</option>
+              {Object.keys(DEPLOYMENTS).map(name => (
+                <option key={name} value={name}>{name}</option>
+              ))}
+            </select>
+          </div>
+  
+          <div className="mb-8">
+            <h3 className="poppins text-lg font-semibold mb-4">Layers</h3>
+            <div className="space-y-2">
+              {Object.entries(visibleLayers).map(([key, value]) => (
+                <label key={key} className="poppins flex items-center">
+                  <input
+                    type="checkbox"
+                    checked={value}
+                    onChange={() => {
+                      setVisibleLayers(prev => ({
+                        ...prev,
+                        [key]: !prev[key]
+                      }));
+                    }}
+                    className="mr-2"
+                  />
+                  {layerNames[key]}
+                </label>
+              ))}
+            </div>
+          </div>
+  
+          <div className="mb-8">
+            <h4 className="poppins text-lg font-semibold mb-2">Score Legend</h4>
+            <div className="bg-gray-100 p-4 rounded flex flex-wrap justify-center gap-1">
+              {COLORS.map((color, i) => (
+                <div
+                  key={i}
+                  className="w-5 h-5"
+                  style={{
+                    backgroundColor: `rgb(${color.join(',')})`
                   }}
-                  className="mr-2"
                 />
-                {layerNames[key]}
-              </label>
-            ))}
+              ))}
+            </div>
+            <p className="poppins text-center mt-2">Low Percentile → High Percentile</p>
           </div>
-        </div>
-
-        <div>
-          <h4 className="poppins text-lg font-semibold mb-2">Score Legend</h4>
-          <div className="bg-gray-100 p-4 rounded flex flex-wrap justify-center gap-1">
-            {COLORS.map((color, i) => (
-              <div
-                key={i}
-                className="w-5 h-5"
-                style={{
-                  backgroundColor: `rgb(${color.join(',')})`
-                }}
+  
+          {activeVideo && (
+            <div className="mt-8">
+              <VideoPlayer
+                deployment={activeVideo}
               />
-            ))}
-          </div>
-          <p className="poppins text-center mt-2">Low Percentile → High Percentile</p>
+            </div>
+          )}
         </div>
-      </div>
+  
+        <div className="flex-1 relative">
+          <div 
+            ref={mapContainer} 
+            className="absolute inset-0"
+            style={{
+              width: '100%',
+              height: '100%'
+            }}
+          />
+        </div>
 
-      <div className="flex-1 relative">
-        <div 
-          ref={mapContainer} 
-          className="absolute inset-0"
-          style={{
-            width: '100%',
-            height: '100%'
-          }}
-        />
+
       </div>
-    </div>
-  );
-};
+    );
+  };
+  
 
 export default RobotabilityMap;
