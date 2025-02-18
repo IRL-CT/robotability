@@ -70,14 +70,31 @@ const RobotabilityMap = () => {
     }
   };
 
-  const VideoPlayer = React.memo(({ deployment }) => {
-    const embedUrl = `https://www.youtube-nocookie.com/embed/${deployment.videoId}?start=${deployment.startTime}&end=${deployment.endTime}&rel=0&modestbranding=1&autoplay=1`;
+  const VideoPlayer = React.memo(({ deployment, isVisible = true }) => {
+    const embedUrl = `https://www.youtube-nocookie.com/embed/${deployment.videoId}?start=${deployment.startTime}&end=${deployment.endTime}&rel=0&modestbranding=1&autoplay=1&enablejsapi=1`;
+    const iframeRef = useRef(null);
     
+    // Handle visibility changes
+    useEffect(() => {
+      const iframe = iframeRef.current;
+      if (iframe) {
+        if (!isVisible) {
+          // Post message to pause the video
+          iframe.contentWindow.postMessage('{"event":"command","func":"pauseVideo","args":""}', '*');
+        } else {
+          // Post message to play the video
+          iframe.contentWindow.postMessage('{"event":"command","func":"playVideo","args":""}', '*');
+        }
+      }
+    }, [isVisible]);
+  
+    if (!isVisible) return null; // Don't render if not visible
+  
     return (
       <div className="bg-white rounded-lg overflow-hidden">
         <div className="p-3 border-b">
           <div className="flex justify-between items-center">
-            <h3 className="poppins text-sm font-medium">{deployment.name}</h3>
+            <h3 className="text-sm font-medium">{deployment.name}</h3>
             <button 
               onClick={() => setActiveVideo(null)}
               className="text-gray-500 hover:text-gray-700"
@@ -88,21 +105,23 @@ const RobotabilityMap = () => {
         </div>
         <div className="relative aspect-video">
           <iframe
+            ref={iframeRef}
             key={`${deployment.videoId}-${deployment.startTime}`}
-            src={embedUrl}
+            src={`${embedUrl}&origin=${window.location.origin}`}
             title={deployment.name}
             className="w-full h-full"
             style={{ minHeight: '200px' }}
             frameBorder="0"
-            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
             allowFullScreen
+            sandbox="allow-same-origin allow-scripts allow-presentation allow-popups allow-popups-to-escape-sandbox"
           />
         </div>
       </div>
     );
   }, (prevProps, nextProps) => {
-    // Only re-render if the deployment name changes
-    return prevProps.deployment.name === nextProps.deployment.name;
+    return prevProps.deployment.name === nextProps.deployment.name && 
+           prevProps.isVisible === nextProps.isVisible;
   });
 
   // dictionary to give layers nice names 
@@ -515,20 +534,31 @@ const RobotabilityMap = () => {
   
             {/* Score Legend - Only visible on desktop */}
             <div className="lt-md:hidden md:block mb-8">
-              <h4 className="poppins text-lg font-semibold mb-2">Score Legend</h4>
-              <div className="bg-gray-100 p-4 rounded flex flex-wrap justify-center gap-1">
-                {COLORS.map((color, i) => (
-                  <div
-                    key={i}
-                    className="w-5 h-5"
-                    style={{
-                      backgroundColor: `rgb(${color.join(',')})`
-                    }}
-                  />
-                ))}
-              </div>
-              <p className="poppins text-center mt-2">Low Percentile → High Percentile</p>
+            <h4 className="poppins text-lg font-semibold mb-2">Score Legend</h4>
+            <div className="bg-gray-100 p-4 rounded flex flex-wrap justify-center gap-1">
+              {COLORS.map((color, i) => (
+                <div
+                  key={i}
+                  className="w-5 h-5"
+                  style={{
+                    backgroundColor: `rgb(${color.join(',')})`
+                  }}
+                />
+              ))}
             </div>
+            <p className="poppins text-center mt-2">Low Percentile → High Percentile</p>
+          </div>
+
+          {/* Video Player - Only visible on desktop */}
+          {/* Desktop video in sidebar */}
+          {activeVideo && (
+            <div className="lt-md:hidden md:block mt-8">
+              <VideoPlayer 
+                deployment={activeVideo} 
+                isVisible={isSidebarOpen && window.innerWidth >= 768} 
+              />
+            </div>
+          )}
           </div>
         </div>
   
@@ -551,6 +581,7 @@ const RobotabilityMap = () => {
         </div>
   
         {/* Video Footer - Only visible on mobile when video is active */}
+        {/* Mobile video footer */}
         {activeVideo && (
           <div className="
             lt-md:block md:hidden
@@ -559,7 +590,10 @@ const RobotabilityMap = () => {
             h-auto max-h-[40vh]
             z-20
           ">
-            <VideoPlayer deployment={activeVideo} />
+            <VideoPlayer 
+              deployment={activeVideo} 
+              isVisible={window.innerWidth < 768}
+            />
           </div>
         )}
       </div>
