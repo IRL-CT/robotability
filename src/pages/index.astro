@@ -52,130 +52,116 @@ const teamMembers = [
   description='A novel metric for quantifying urban robot navigation suitability'
 >
   <main class='bg-white p-6'>
-    <!-- <MobileSocials /> -->
-    <section id='about' class='flex flex-col lg:grid lg:grid-cols-2 gap-8 mt-4'>
-      {/* Priority Mobile Content */}
-      <div class="flex flex-col gap-8 lg:col-start-2 lg:row-start-1">
-        <Card color="#f3f3f3">
-          <h3 class='text-2xl lg:text-4xl mb-4 dm-serif'>
-            What is The Robotability Score?
-          </h3>
-          <p class='poppins mb-4'>
-            The Robotability Score (R) is a novel metric that quantifies how suitable urban environments are for autonomous robot navigation. Through expert interviews and surveys, we've developed a standardized framework for evaluating urban landscapes to reduce uncertainty in robot deployment while respecting established mobility patterns.  
-          </p>
-          
-          <p class='poppins'>
-            Streets with high Robotability are both more navigable for robots and less disruptive to pedestrians. We've constructed a proof-of-concept Robotability Score for New York City using a wealth of open datasets from NYC OpenData, and inferred pedestrian distributions from a dataset of 8 million dashcam images taken around the city in late 2023.
-          </p>
-        </Card>
-      </div>
-
-      {/* Video Section - Second on mobile, right column on desktop */}
-      <div class="flex flex-col gap-8 lg:col-start-2 lg:row-start-2">
-        <Card color="#f3f3f3">
-          <div class='flex flex-col justify-between items-start gap-4'>
-            <LazyBoxVideo 
-              videoId="pwnw4hK1Oh4"
-              title="NYC Deployment of Robotability"
-            />
-          </div>
-        </Card>
-      </div>
-
-      {/* Main Content - Left column on desktop, after priority content on mobile */}
-      <div class="flex flex-col gap-8 lg:col-start-1 lg:row-start-1">
-        <Card color="#f3f3f3">
-          <h2 class='text-2xl lg:text-4xl mb-4 dm-serif'>
-            The Robotability Score: Enabling Harmonious Robot Navigation on Urban Streets
+    <section id='about' class='flex flex-col gap-8 mt-4 max-w-6xl mx-auto'>
+      {/* Main Content */}
+      <Card color="#f3f3f3">
+        <div class="p-6">
+          <h2 class='lg:text-5xl mb-0 dm-serif'>
+            The Robotability Score: 
           </h2>
-          <div class="flex flex-row gap-4 mb-2">
-
-            <h3 class='text-xl lg:text-2xl mb-4 dm-serif' style="max-width: 450px;">
-              CHI '25: ACM Conference on Human Factors in Computing Systems
+          <h2 class='lg:text-4xl mb-12 dm-serif'>
+            Enabling Harmonious Robot Navigation on Urban Streets
+          </h2>
+          <div class="flex justify-between items-center mb-8">
+            <h3 class='text-xl lg:text-2xl dm-serif max-w-[450px]'>
+              @ CHI '25: ACM Conference on Human Factors in Computing Systems
             </h3>
-            <!-- add cornell logos -->
-            <div id="logos" class="flex flex-row gap-2">
-            <img src="/cornell_logo_simple_b31b1b.png" alt="Cornell University Logo" class="w-80 h-22" />
-            <img src="/cornell_tech.png" alt="Cornell Tech Logo" class="w-24 h-24" />
+            <div id="logos" class="flex items-center gap-4">
+              <img src="/cornell_logo_simple_b31b1b.png" alt="Cornell University Logo" class="h-24 w-auto" />
+              <img src="/cornell_tech.png" alt="Cornell Tech Logo" class="h-24 w-auto" />
             </div>
-
-          
-        </div>
-          <div id="materials-buttons" class="flex flex-row gap-8">
-            <Button color="white" target={'_blank'} href='https://doi.org/10.1145/3706598.3714009'>
-              Read Paper &rarr;
+          </div>
+          <div id="materials-buttons" class="poppins text-lg flex flex-row gap-8">
+            <Button color="white" target={'_blank'} href='https://doi.org/10.1145/3706598.3714009' class="no-underline">
+              <span class="font-bold no-underline hover:no-underline">Read Paper &rarr;</span>
             </Button>
-            <Button color="white" target={'_blank'} href="https://github.com/FAR-LAB/robotability-nyc">
-              Code Repository &rarr;
+            <Button color="white" target={'_blank'} href="https://github.com/FAR-LAB/robotability-nyc" class="no-underline">
+              <span class="font-bold no-underline hover:no-underline">Code Repository &rarr;</span>
             </Button>
           </div>
-        </Card>
+        </div>
+       </Card>
 
-      </div>
-      <div class="flex flex-col gap-8 lg:col-start-1 lg:row-start-2">
-        <Card color="#f3f3f3">
-          <h2 class='text-2xl lg:text-4xl mb-8 dm-serif'>
-            Key Features
-          </h2>
-          <ul class='flex gap-4 flex-wrap'>
+      <Card color="#f3f3f3">
+        <h3 class='text-2xl lg:text-4xl mb-4 dm-serif'>
+          What is The Robotability Score?
+        </h3>
+        <p class='poppins mb-4'>
+          The Robotability Score (R) is a novel metric that quantifies how suitable urban environments are for autonomous robot navigation. Through expert interviews and surveys, we've developed a standardized framework for evaluating urban landscapes to reduce uncertainty in robot deployment while respecting established mobility patterns.  
+        </p>
+        <p class='poppins'>
+          Streets with high Robotability are both more navigable for robots and less disruptive to pedestrians. We've constructed a proof-of-concept Robotability Score for New York City using a wealth of open datasets from NYC OpenData, and inferred pedestrian distributions from a dataset of 8 million dashcam images taken around the city in late 2023.
+        </p>
+      </Card>
+
+      <Card color="#f3f3f3">
+        <div class='flex flex-col justify-between items-start gap-4'>
+          <LazyBoxVideo 
+            videoId="pwnw4hK1Oh4"
+            title="NYC Deployment of Robotability"
+          />
+        </div>
+      </Card>
+
+      <Card color="#f3f3f3">
+        <h2 class='text-2xl lg:text-4xl mb-8 dm-serif'>
+          Key Features
+        </h2>
+        <div class='flex gap-4 flex-wrap'>
+          {
+            keyFeatures.map((item) => (
+              <Pill>
+                <span class='sanchez'>
+                  {item.name}: {item.weight}
+                </span>
+              </Pill>
+            ))
+          }
+        </div>
+        <p class='mt-4 poppins'>
+          Our findings reveal that these factors collectively account for 48% of the total Robotability Score. Areas with highest R are 4.3 times more "robotable" than areas with lowest R.
+        </p>
+      </Card>
+
+      <Card color="#f3f3f3">
+        <h2 class='text-2xl lg:text-4xl mb-4 dm-serif'>
+          Interactive Map
+        </h2>
+        <p class='poppins mb-4'>
+          Explore the spatial distribution of Robotability Scores across New York City's diverse urban landscape.
+        </p>
+        <Button target={'_blank'} href='map'>
+          Open Interactive Map &rarr;
+        </Button>
+      </Card>
+
+      <Card color="#f3f3f3">
+        <h2 class='text-2xl lg:text-4xl mb-6 dm-serif'>
+          Project Team
+        </h2>
+        <div class="flex justify-center items-start w-full">
+          <div class="flex justify-between w-full px-8">
             {
-              keyFeatures.map((item) => (
-                <li>
-                  <Pill>
-                    <span class='sanchez'>
-                      {item.name}: {item.weight}
-                    </span>
-                  </Pill>
-                </li>
+              teamMembers.map((member) => (
+                <a 
+                  href={member.link} 
+                  class="flex flex-col items-center group hover:transform hover:scale-105 transition-transform no-underline"
+                >
+                  <div class="w-24 h-24 rounded-full overflow-hidden border-2 border-white mb-2">
+                    <img 
+                      src={member.image} 
+                      alt={member.name}
+                      class="w-full h-full object-cover"
+                    />
+                  </div>
+                  <h3 class="poppins text-xl text-center no-underline mb-0">{member.name}</h3>
+                  <p class="poppins text-md text-gray-800 text-center max-w-[140px]">{member.role}</p>
+                </a>
               ))
             }
-          </ul>
-          <p class='mt-4 poppins'>
-            Our findings reveal that these factors collectively account for 48% of the total Robotability Score. Areas with highest R are 4.3 times more "robotable" than areas with lowest R.
-          </p>
-        </Card>
-        
-
-        <Card color="#f3f3f3">
-          <h2 class='text-2xl lg:text-4xl mb-4 dm-serif'>
-            Interactive Map
-          </h2>
-          <p class='poppins mb-4'>
-            Explore the spatial distribution of Robotability Scores across New York City's diverse urban landscape.
-          </p>
-          <Button target={'_blank'} href='map'>
-            Open Interactive Map &rarr;
-          </Button>
-        </Card>
-
-        <Card color="#f3f3f3">
-          <h2 class='text-2xl lg:text-4xl mb-6 dm-serif'>
-            Project Team
-          </h2>
-          <div class="flex justify-center items-start w-full">
-            <div class="flex justify-between w-full px-8">
-              {
-                teamMembers.map((member) => (
-                  <a 
-                    href={member.link} 
-                    class="flex flex-col items-center group hover:transform hover:scale-105 transition-transform"
-                  >
-                    <div class="w-24 h-24 rounded-full overflow-hidden border-2 border-white mb-2">
-                      <img 
-                        src={member.image} 
-                        alt={member.name}
-                        class="w-full h-full object-cover"
-                      />
-                    </div>
-                    <h3 class="font-large text-center">{member.name}</h3>
-                    <p class="text-sm text-gray-800 text-center max-w-[140px]">{member.role}</p>
-                  </a>
-                ))
-              }
-            </div>
           </div>
-        </Card>
-      </div>
+        </div>
+      </Card>
     </section>
   </main>
 </Layout>

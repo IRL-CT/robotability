@@ -51,54 +51,69 @@ const RobotabilityMap = () => {
     }
   };
 
-  // Initialize map
-  useEffect(() => {
-    if (!mapContainer.current) return;
+  // dictionary to give layers nice names 
+  const layerNames = {
+    sidewalkScores: 'Sidewalk Scores',
+    censusBlocks: 'Census Blocks',
+    deploymentLocations: 'Deployment Locations'
+  };
 
-    const mapInstance = new maplibregl.Map({
-      container: mapContainer.current,
-      style: 'https://basemaps.cartocdn.com/gl/positron-gl-style/style.json',
-      center: [-73.9712, 40.7831],
-      zoom: 12,
-      pitch: 45,
-      bearing: 0
-    });
+  // In your map initialization:
+const [firstLabelLayerId, setFirstLabelLayerId] = useState(null);
 
-    mapInstance.on('load', () => {
-      const overlay = new MapboxOverlay({
-        interleaved: true,
-        layers: [],
-        getTooltip: ({object}) => {
-          if (object) {
-            const score = (object.properties.score * 100).toFixed(1);
-            return {
-              html: `Score: ${score}%`,
-              style: {
-                backgroundColor: 'white',
-                fontSize: '0.8em',
-                padding: '4px 8px',
-                borderRadius: '4px',
-                boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
-              }
-            };
-          }
-          return null;
+useEffect(() => {
+  if (!mapContainer.current) return;
+
+  const mapInstance = new maplibregl.Map({
+    container: mapContainer.current,
+    style: 'https://basemaps.cartocdn.com/gl/positron-gl-style/style.json',
+    center: [-73.9712, 40.7831],
+    zoom: 12,
+    pitch: 45,
+    bearing: 0
+  });
+
+  mapInstance.on('style.load', () => {
+    // Find the first label layer
+    const firstLabelLayer = mapInstance.getStyle().layers.find(layer => 
+      layer.type === 'symbol' || layer.id.includes('label') || layer.id.includes('place')
+    );
+    setFirstLabelLayerId(firstLabelLayer.id);
+
+    const overlay = new MapboxOverlay({
+      interleaved: true,
+      layers: [],
+      getTooltip: ({object}) => {
+        if (object) {
+          const score = (object.properties.score * 100).toFixed(1);
+          return {
+            html: `Score: ${score}%`,
+            style: {
+              backgroundColor: 'white',
+              fontSize: '0.8em',
+              padding: '4px 8px',
+              borderRadius: '4px',
+              boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+            }
+          };
         }
-      });
-
-      mapInstance.addControl(overlay);
-      setDeckgl(overlay);
-
-      mapInstance.addControl(
-        new maplibregl.NavigationControl(),
-        'top-right'
-      );
+        return null;
+      }
     });
 
-    setMap(mapInstance);
+    mapInstance.addControl(overlay);
+    setDeckgl(overlay);
 
-    return () => mapInstance.remove();
-  }, []);
+    mapInstance.addControl(
+      new maplibregl.NavigationControl(),
+      'top-right'
+    );
+  });
+
+  setMap(mapInstance);
+
+  return () => mapInstance.remove();
+}, []);
 
   // Load data
   useEffect(() => {
@@ -129,7 +144,7 @@ const RobotabilityMap = () => {
 
   // Update layers when visibility changes or data loads
   useEffect(() => {
-    if (!deckgl || !mapData.sidewalks) return;
+    if (!deckgl || !mapData.sidewalks || !firstLabelLayerId) return;
 
     const layers = [];
 
@@ -142,7 +157,8 @@ const RobotabilityMap = () => {
           stroked: true,
           filled: false,
           lineWidthScale: 3,
-          getLineColor: [100, 100, 100, 100]
+          getLineColor: [100, 100, 100, 100],
+          beforeId: firstLabelLayerId
         })
       );
     }
@@ -227,6 +243,7 @@ const RobotabilityMap = () => {
           stroked: true,
           filled: true,
           lineWidthScale: 12,
+          beforeId: firstLabelLayerId,
           getLineColor: d => {
             const score = d.properties?.score ?? 0;
             const colorIndex = Math.floor(score * 2.5 *(COLORS.length - 1));
@@ -241,17 +258,19 @@ const RobotabilityMap = () => {
       );
     }
 
+    // Update deck.gl layers
     deckgl.setProps({ layers });
-  }, [deckgl, mapData, visibleLayers]);
+
+    }, [deckgl, mapData, visibleLayers, map]);
 
   return (
     <div className="flex h-screen w-full">
       <div className="w-96 bg-white p-4 shadow-lg overflow-y-auto z-10">
         <div className="mb-8">
-          <h3 className="text-xl font-semibold italic mb-4">THE ROBOTABILITY SCORE</h3>
-          <p className="mb-4">New York City deployment, September 2024</p>
+          <h3 className="poppins text-xl font-semibold italic mb-4">Robotability Proof-of-Concept</h3>
+          <p className="poppins mb-4">New York City, September 2024</p>
           <select 
-            className="w-full p-2 border rounded"
+            className="poppins w-full p-2 border rounded"
             value={selectedDeployment}
             onChange={(e) => {
               setSelectedDeployment(e.target.value);
@@ -274,10 +293,10 @@ const RobotabilityMap = () => {
         </div>
 
         <div className="mb-8">
-          <h3 className="text-lg font-semibold mb-4">Layers</h3>
+          <h3 className="poppins text-lg font-semibold mb-4">Layers</h3>
           <div className="space-y-2">
             {Object.entries(visibleLayers).map(([key, value]) => (
-              <label key={key} className="flex items-center">
+              <label key={key} className="poppins flex items-center">
                 <input
                   type="checkbox"
                   checked={value}
@@ -289,14 +308,14 @@ const RobotabilityMap = () => {
                   }}
                   className="mr-2"
                 />
-                {key.replace(/([A-Z])/g, ' $1').trim()}
+                {layerNames[key]}
               </label>
             ))}
           </div>
         </div>
 
         <div>
-          <h4 className="text-lg font-semibold mb-2">Score Legend</h4>
+          <h4 className="poppins text-lg font-semibold mb-2">Score Legend</h4>
           <div className="bg-gray-100 p-4 rounded flex flex-wrap justify-center gap-1">
             {COLORS.map((color, i) => (
               <div
@@ -308,7 +327,7 @@ const RobotabilityMap = () => {
               />
             ))}
           </div>
-          <p className="text-center mt-2">Low → High</p>
+          <p className="poppins text-center mt-2">Low Percentile → High Percentile</p>
         </div>
       </div>
 
