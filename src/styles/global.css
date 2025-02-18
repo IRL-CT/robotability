@@ -1,13 +1,4 @@
 
-.card-shadow {
-  filter: drop-shadow(7px 7px 0 rgb(0 0 0 / 1));
-  transition: all;
-  transition-duration: 0.5s;
-  animation: ease-in-out;
-}
-.card-shadow:hover {
-  filter: drop-shadow(5px 5px 0 rgb(0 0 0 / 1));
-}
 
 :root 
 {  /* ---- ⚫️ Colors ⚪️ ---- */
@@ -173,6 +164,20 @@ html {
   }
 }
 
+.brutal-card {
+  background: rgba(255, 255, 255) !important;
+  border-radius: 0.5rem !important;
+  border: 3px solid black !important;
+  box-shadow: 7px 7px 0 rgb(0 0 0 / 1) !important;
+  padding: 1rem !important;
+  transition: all 0.5s ease-in-out !important;
+  filter: none !important
+}
+
+.brutal-card:hover {
+  transform: scale(1.005) !important;
+  box-shadow: 5px 5px 0 rgb(0 0 0 / 1) !important;
+}
 
 /*@layer base {
   * {
