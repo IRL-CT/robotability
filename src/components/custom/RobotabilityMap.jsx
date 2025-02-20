@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import maplibregl from 'maplibre-gl';
 import { GeoJsonLayer } from '@deck.gl/layers';
 import { MapboxOverlay } from '@deck.gl/mapbox';
@@ -16,8 +16,6 @@ const COLORS = [
   [26, 152, 80],   // Green
   [0, 104, 55]     // Dark green
 ];
-
-
 
 const RobotabilityMap = () => {
 
@@ -131,6 +129,8 @@ const RobotabilityMap = () => {
     deploymentLocations: 'Deployment Locations'
   };
 
+  // Create a new ref for the tooltip
+  const tooltipRef = useRef(null);
 
   // In your map initialization:
   useEffect(() => {
@@ -145,22 +145,10 @@ const RobotabilityMap = () => {
     return () => window.removeEventListener('resize', updateSidebarWidth);
   }, []);
 
-  // At the start of your component
+  // Update the map initialization effect
   useEffect(() => {
     if (!mapContainer.current) return;
-  
-    // Create tooltip div
-    const tooltip = document.createElement('div');
-    tooltip.style.display = 'none';
-    tooltip.style.position = 'absolute';
-    tooltip.style.pointerEvents = 'none';
-    tooltip.style.zIndex = '100';
-    tooltip.style.backgroundColor = 'white';
-    tooltip.style.padding = '8px 12px';
-    tooltip.style.borderRadius = '6px';
-    tooltip.style.boxShadow = '0 2px 4px rgba(0,0,0,0.1)';
-    document.body.appendChild(tooltip);
-  
+
     // Initialize map
     const mapInstance = new maplibregl.Map({
       container: mapContainer.current,
@@ -170,56 +158,82 @@ const RobotabilityMap = () => {
       pitch: 45,
       bearing: 0
     });
-  
+
     mapInstance.on('style.load', () => {
       const firstLabelLayer = mapInstance.getStyle().layers.find(layer => 
         layer.type === 'symbol' || layer.id.includes('label') || layer.id.includes('place')
       );
       setFirstLabelLayerId(firstLabelLayer.id);
-  
-      const overlay = new MapboxOverlay({
-        interleaved: true,
-        layers: [],
-        onHover: (info) => {
-          if (info.object) {
-            const x = info.x + sidebarWidth;
-            const y = info.y;
-            
-            tooltip.style.display = 'block';
-            tooltip.style.left = `${x}px`;
-            tooltip.style.top = `${y}px`;
-            tooltip.style.transform = 'translate(-50%, -100%)';
-            tooltip.style.marginTop = '-10px';
-  
-            if (info.layer.id === 'deployment-zones' && info.object.properties?.name) {
-              tooltip.innerHTML = `
-                <div class="font-semibold">${info.object.properties.name}</div>
-                <div class="text-sm text-gray-600">Click to view deployment</div>
-              `;
-            } 
-            else if (info.layer.id === 'sidewalks' && info.object.properties?.score) {
-              tooltip.innerHTML = `Score: ${(info.object.properties.score * 100).toFixed(1)}%`;
-            }
-          } else {
-            tooltip.style.display = 'none';
-          }
-        }
-      });
-  
-      mapInstance.addControl(overlay);
-      setDeckgl(overlay);
     });
-  
+
     setMap(mapInstance);
-  
-    // Cleanup
+
     return () => {
       mapInstance.remove();
-      document.body.removeChild(tooltip);
     };
-  }, [sidebarWidth]);
+  }, []);
 
+  // Separate effect for DeckGL and tooltip setup
+  useEffect(() => {
+    if (!map) return;
 
+    // Create tooltip if it doesn't exist
+    if (!tooltipRef.current) {
+      const tooltip = document.createElement('div');
+      tooltip.style.display = 'none';
+      tooltip.style.position = 'absolute';
+      tooltip.style.pointerEvents = 'none';
+      tooltip.style.zIndex = '100';
+      tooltip.style.backgroundColor = 'white';
+      tooltip.style.padding = '8px 12px';
+      tooltip.style.borderRadius = '6px';
+      tooltip.style.boxShadow = '0 2px 4px rgba(0,0,0,0.1)';
+      document.body.appendChild(tooltip);
+      tooltipRef.current = tooltip;
+    }
+
+    const overlay = new MapboxOverlay({
+      interleaved: true,
+      layers: [],
+      onHover: (info) => {
+        const tooltip = tooltipRef.current;
+        if (!tooltip) return;
+
+        if (info.object) {
+          const x = info.x + (isSidebarOpen ? sidebarWidth : 0);
+          const y = info.y;
+          
+          tooltip.style.display = 'block';
+          tooltip.style.left = `${x}px`;
+          tooltip.style.top = `${y}px`;
+          tooltip.style.transform = 'translate(-50%, -100%)';
+          tooltip.style.marginTop = '-10px';
+
+          if (info.layer.id === 'deployment-zones' && info.object.properties?.name) {
+            tooltip.innerHTML = `
+              <div class="font-semibold">${info.object.properties.name}</div>
+              <div class="text-sm text-gray-600">Click to view deployment</div>
+            `;
+          } else if (info.layer.id === 'sidewalks' && info.object.properties?.score) {
+            tooltip.innerHTML = `Score: ${(info.object.properties.score * 100).toFixed(1)}%`;
+          }
+        } else {
+          tooltip.style.display = 'none';
+        }
+      }
+    });
+
+    map.addControl(overlay);
+    setDeckgl(overlay);
+
+    return () => {
+      if (tooltipRef.current) {
+        document.body.removeChild(tooltipRef.current);
+        tooltipRef.current = null;
+      }
+      map.removeControl(overlay);
+    };
+  }, [map, isSidebarOpen, sidebarWidth]);
 
   // Deployment click handler
   const handleDeploymentSelect = React.useCallback((deploymentName) => {
@@ -423,6 +437,19 @@ const RobotabilityMap = () => {
 
     }, [deckgl, mapData, visibleLayers, map, firstLabelLayerId]);
 
+    // Add debug logging to track state changes
+    const handleSidebarToggle = () => {
+      console.log('Before toggle:', isSidebarOpen);
+      setIsSidebarOpen(prev => !prev);
+      // Add small delay to allow state to update
+      setTimeout(() => {
+        console.log('After toggle:', isSidebarOpen);
+        if (sidebarRef.current) {
+          setSidebarWidth(sidebarRef.current.offsetWidth);
+        }
+      }, 300);
+    };
+
     return (
       <div className="h-screen w-full flex flex-col lt-md:flex-col md:flex-row relative">
         {/* Home Button. Put to the right of the sidebar toggle button */}
@@ -457,10 +484,7 @@ const RobotabilityMap = () => {
         >
           {/* Sidebar Toggle Button - Only on desktop */}
           <button
-            onClick={() => {
-              setIsSidebarOpen(!isSidebarOpen);
-              
-            }}
+            onClick={handleSidebarToggle}
             className="
               md:block lt-md:hidden
               absolute -right-14 top-4
