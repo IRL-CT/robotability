@@ -63,13 +63,14 @@ const teamMembers = [
             Enabling Harmonious Robot Navigation on Urban Streets
           </h2>
             <div class="flex flex-col lg:flex-row justify-between items-center mb-8">
-            <h3 class='text-xl lg:text-2xl dm-serif max-w-[450px] mb-4 lg:mb-0'>
-              @ CHI '25: ACM Conference on Human Factors in Computing Systems
-            </h3>
+            
             <div id="logos" class="flex items-center gap-4 flex-wrap justify-center lg:justify-start">
               <img src="/cornell_logo_simple_b31b1b.png" alt="Cornell University Logo" class="h-16 lg:h-24 w-auto" />
               <img src="/cornell_tech.png" alt="Cornell Tech Logo" class="h-16 lg:h-24 w-auto" />
             </div>
+            <h3 class='text-xl lg:text-2xl dm-serif max-w-[450px] mb-4 lg:mb-0'>
+              @ CHI '25: ACM Conference on Human Factors in Computing Systems
+            </h3>
             </div>
           <div id="materials-buttons" class="poppins text-lg flex flex-row gap-8">
             <Button color="#FFE1E1" target={'_blank'} href='https://doi.org/10.1145/3706598.3714009' class="no-underline">
@@ -82,60 +83,7 @@ const teamMembers = [
         </div>
        </Card>
 
-      <Card color="#f3f3f3">
-        <h3 class='text-2xl lg:text-4xl mb-4 dm-serif'>
-          What is The Robotability Score?
-        </h3>
-        <p class='poppins mb-4'>
-          The Robotability Score (R) is a novel metric that quantifies how suitable urban environments are for autonomous robot navigation. Through expert interviews and surveys, we've developed a standardized framework for evaluating urban landscapes to reduce uncertainty in robot deployment while respecting established mobility patterns.  
-        </p>
-        <p class='poppins'>
-          Streets with high Robotability are both more navigable for robots and less disruptive to pedestrians. We've constructed a proof-of-concept Robotability Score for New York City using a wealth of open datasets from NYC OpenData, and inferred pedestrian distributions from a dataset of 8 million dashcam images taken around the city in late 2023.
-        </p>
-      </Card>
-
-      <Card color="#f3f3f3">
-        <div class='flex flex-col justify-between items-start gap-4'>
-          <LazyBoxVideo 
-            videoId="o52MZ1AHyjA"
-            title="Robotability Proof-of-Concept: TrashBot in NYC"
-          />
-        </div>
-      </Card>
-
-      <Card color="#f3f3f3">
-        <h2 class='text-2xl lg:text-4xl mb-8 dm-serif'>
-          Key Features
-        </h2>
-        <div class='flex gap-4 flex-wrap'>
-          {
-            keyFeatures.map((item) => (
-              <Pill color="#FFE1E1">
-                <span class='sanchez'>
-                  {item.name}: {item.weight}
-                </span>
-              </Pill>
-            ))
-          }
-        </div>
-        <p class='mt-4 poppins'>
-          Our findings reveal that these factors collectively account for 48% of the total Robotability Score. Areas with highest R are 4.3 times more "robotable" than areas with lowest R.
-        </p>
-      </Card>
-
-      <Card color="#f3f3f3">
-        <h2 class='text-2xl lg:text-4xl mb-4 dm-serif'>
-          Interactive Map
-        </h2>
-        <p class='poppins mb-4'>
-          Explore the spatial distribution of Robotability Scores across New York City from our proof-of-concept deployment.
-        </p>
-        <Button color='#FFE1E1' href='map'>
-          Open Interactive Map &rarr;
-        </Button>
-      </Card>
-
-      <Card>
+       <Card>
         <h2 class='text-2xl lg:text-4xl mb-6 dm-serif'>
           Project Team
         </h2>
@@ -162,6 +110,70 @@ const teamMembers = [
           </div>
         </div>
       </Card>
+
+      <Card color="#f3f3f3">
+        <h3 class='text-2xl lg:text-4xl mb-4 dm-serif'>
+          What is The Robotability Score?
+        </h3>
+        <p class='poppins mb-4'>
+          The Robotability Score (R) is a novel metric that quantifies how suitable urban environments are for autonomous robot navigation. Through expert interviews and surveys, we've developed a standardized framework for evaluating urban landscapes to reduce uncertainty in robot deployment while respecting established mobility patterns.  
+        </p>
+        <p class='poppins'>
+          Streets with high Robotability are both more navigable for robots and less disruptive to pedestrians. We've constructed a proof-of-concept Robotability Score for New York City using a wealth of open datasets from NYC OpenData, and inferred pedestrian distributions from a dataset of 8 million dashcam images taken around the city in late 2023.
+        </p>
+      </Card>
+
+   
+      <Card color="#f3f3f3">
+        <Button href="map" class="no-underline">
+          <span class="poppins text-2xl lg:text-4xl dm-serif">Interactive Map &rarr;</span>
+        </Button>
+        <p class='poppins mt-4'>
+          Explore the spatial distribution of Robotability Scores across New York City from our proof-of-concept deployment.
+        </p>
+      </Card>
+
+      <Card color="#f3f3f3">
+        <h2 class='text-2xl lg:text-4xl mb-8 dm-serif'>
+          Key Features
+        </h2>
+        <div class='flex gap-4 flex-wrap'>
+          {
+            keyFeatures.map((item) => (
+              <Pill color="#FFE1E1">
+                <span class='sanchez'>
+                  {item.name}: {item.weight}
+                </span>
+              </Pill>
+            ))
+          }
+        </div>
+        <p class='mt-4 poppins'>
+          Our findings reveal that these factors collectively account for 48% of the total Robotability Score. Areas with highest R are 4.3 times more "robotable" than areas with lowest R.
+        </p>
+      </Card>
+
+
+
+      <Card color="#f3f3f3">
+        <div class='flex flex-col justify-between items-start gap-4'>
+          <LazyBoxVideo 
+            videoId="o52MZ1AHyjA"
+            title="Robotability Proof-of-Concept: TrashBot in NYC"
+          />
+        </div>
+      </Card>
+
+     
     </section>
   </main>
+
+  <style>
+    :global(.brutal-btn #map) {
+      padding: 1rem 2rem !important;
+      font-size: 1.25rem !important;
+      min-width: 200px !important;
+    }
+  </style>
 </Layout>
+
