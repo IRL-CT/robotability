@@ -28,7 +28,7 @@ const teamMembers = [
   {
     name: 'Maria Teresa Parreira',
     role: 'Information Science PhD Candidate',
-    image: '/team/teresa.jpg',
+    image: '/team/teresa.png',
     link: 'https://www.mariateresaparreira.com/'
   },
   {
@@ -73,10 +73,10 @@ const teamMembers = [
             </h3>
             </div>
           <div id="materials-buttons" class="poppins text-lg flex flex-row gap-8">
-            <Button color="#FFE1E1" target={'_blank'} href='https://doi.org/10.1145/3706598.3714009' class="no-underline">
+            <Button color="#FFE1E1" target={'_blank'} href='https://doi.org/10.1145/3706598.3714009'>
               <span class="font-bold no-underline hover:no-underline">Read Paper &rarr;</span>
             </Button>
-            <Button color="#FFE1E1" target={'_blank'} href="https://github.com/FAR-LAB/robotability-nyc" class="no-underline">
+            <Button color="#FFE1E1" target={'_blank'} href="https://github.com/FAR-LAB/robotability-nyc">
               <span class="font-bold no-underline hover:no-underline">Code Repository &rarr;</span>
             </Button>
           </div>
@@ -88,22 +88,22 @@ const teamMembers = [
           Project Team
         </h2>
         <div class="flex justify-center items-start w-full">
-          <div class="flex justify-between w-full px-8">
+          <div class="grid grid-cols-2 lg:grid-cols-4 gap-8 w-full px-4 lg:px-8">
             {
               teamMembers.map((member) => (
                 <a 
                   href={member.link} 
                   class="flex flex-col items-center group hover:transform hover:scale-105 transition-transform no-underline"
                 >
-                  <div class="w-32 h-32 rounded-full overflow-hidden border-2 border-white mb-2">
+                  <div class="w-24 lg:w-32 h-24 lg:h-32 rounded-full overflow-hidden border-2 border-white mb-2">
                     <img 
                       src={member.image} 
                       alt={member.name}
                       class="w-full h-full object-cover"
                     />
                   </div>
-                  <h3 class="poppins text-xl text-center no-underline mb-0">{member.name}</h3>
-                  <p class="poppins text-md text-gray-800 text-center max-w-[140px]">{member.role}</p>
+                  <h3 class="poppins text-lg lg:text-xl text-center no-underline mb-0">{member.name}</h3>
+                  <p class="poppins text-sm lg:text-md text-gray-800 text-center max-w-[160px]">{member.role}</p>
                 </a>
               ))
             }
@@ -125,7 +125,7 @@ const teamMembers = [
 
    
       <Card color="#f3f3f3">
-        <Button href="map" class="no-underline" color="#FFE1E1">
+        <Button href="map" color="#FFE1E1">
           <span class="poppins text-2xl lg:text-4xl dm-serif">Interactive Map &rarr;</span>
         </Button>
         <p class='poppins mt-4'>
@@ -137,7 +137,7 @@ const teamMembers = [
         <h2 class='text-2xl lg:text-4xl mb-8 dm-serif'>
           Key Features
         </h2>
-        <div class='flex gap-4 flex-wrap'>
+        <div class='flex gap-4 flex-wrap mb-4'>
           {
             keyFeatures.map((item) => (
               <Pill color="#FFE1E1">
@@ -147,13 +147,61 @@ const teamMembers = [
               </Pill>
             ))
           }
+          <button
+            id="toggleIndicators"
+            class="px-4 py-2 bg-[#FFE1E1] rounded hover:shadow-brutal transition-all duration-300 border-2 border-black ml-2"
+          >
+            <span class="sanchez">View Full Indicator List ↓</span>
+          </button>
         </div>
         <p class='mt-4 poppins'>
           Our findings reveal that these factors collectively account for 48% of the total Robotability Score. Areas with highest R are 4.3 times more "robotable" than areas with lowest R.
         </p>
       </Card>
 
-
+      <div 
+        id="indicatorsList" 
+        class="hidden opacity-0 transform translate-y-[-10px] transition-all duration-300 ease-in-out -mt-4"
+      >
+        <Card color="#f3f3f3">
+          <h3 class="text-2xl mb-6 dm-serif">Complete Indicator List</h3>
+          <p class="poppins mb-6 text-gray-700">Each indicator is paired with a sample set of weights to show how the Robotability Score might change under different indicator values.</p>
+          
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {[
+              ["Sidewalk width", "0 = narrow, 1 = wide"],
+              ["Pedestrian density", "0 = high density, 1 = low density"],
+              ["Density of street furniture (e.g. garbage, poles)", "0 = high density, 1 = moderate density, 2 = low density, 3 = no furniture"],
+              ["Sidewalk / Surface roughness", "0 = gravel, 1 = cobblestones, 2 = smooth asphalt"],
+              ["Surface condition", "0 = potholes, 1 = major cracks, 2 = minor cracks, 3 = smooth"],
+              ["Wireless communication infrastructure", "0 = no infrastructure, 1 = basic Wi-Fi, 2 = 5G, IoT"],
+              ["Slope gradient", "0 = high slope, 1 = no slope"],
+              ["Presence of charging stations", "0 = no charging stations nearby, 1 = multiple charging stations in proximity"],
+              ["Local attitudes towards robots", "0 = highly negative, 1 = somewhat negative, 2 = neutral, 3 = somewhat positive, 4 = highly positive"],
+              ["Curb ramp availability", "0 = no curb ramps, 1 = curb ramps at some intersections, 2 = curb ramps at most intersections, 3 = curb ramps with tactile paving"],
+              ["Weather conditions", "0 = ice, 1 = snow, 2 = puddles, 3 = leaves, 4 = clear"],
+              ["Crowd dynamics", "0 = emergency, 1 = commuting, 2 = shopping, 3 = leisure"],
+              ["Traffic management", "0 = no system, 1 = basic signage, 2 = street lights, 3 = advanced traffic control"],
+              ["Surveillance coverage (CCTV)", "0 = no coverage, 1 = low coverage, 2 = moderate coverage, 3 = high coverage"],
+              ["Zoning laws and regulation", "0 = no regulations, 1 = moderate stringency, 2 = high stringency"],
+              ["Bike lane availability", "0 = no bike lanes, 1 = bike lanes on most roads, 2 = separated bike lanes on all roads"],
+              ["Street lighting", "0 = no lighting, 1 = excellent lighting"],
+              ["Existence of shade", "0 = no shade, 1 = extensive shade"],
+              ["GPS signal strength", "0 = no signal, 1 = very strong signal"],
+              ["Pedestrian flow", "0 = very high flow, 1 = very low flow"],
+              ["Bicycle traffic", "0 = very high traffic, 1 = very low traffic"],
+              ["Vehicle traffic", "0 = very high traffic, 1 = very low traffic"],
+              ["Existence of detailed digital maps", "0 = no digital maps, 1 = highly detailed maps"],
+              ["Intersection safety", "0 = no infrastructure, 1 = basic crosswalks, 2 = zebra crossings with signals, 3 = advanced intersection management"]
+            ].map((item) => (
+              <div class="p-4 bg-[#FFE1E1] rounded hover:shadow-brutal transition-shadow">
+                <h4 class="font-bold poppins text-lg mb-2">{item[0]}</h4>
+                <p class="text-gray-700">(e.g., {item[1]})</p>
+              </div>
+            ))}
+          </div>
+        </Card>
+      </div>
 
       <Card color="#f3f3f3">
         <div class='flex flex-col justify-between items-start gap-4'>
@@ -174,6 +222,43 @@ const teamMembers = [
       font-size: 1.25rem !important;
       min-width: 200px !important;
     }
+    .shadow-brutal {
+      box-shadow: 3px 3px 0 0 rgba(0, 0, 0, 1);
+    }
+    #indicatorsList {
+      transition: opacity 0.3s ease-in-out,
+                  transform 0.3s ease-in-out;
+    }
   </style>
 </Layout>
+
+<script is:inline>
+  document.addEventListener('DOMContentLoaded', () => {
+    const button = document.getElementById('toggleIndicators');
+    const list = document.getElementById('indicatorsList');
+    
+    if (button && list) {
+      button.addEventListener('click', () => {
+        const isHidden = list.classList.contains('hidden');
+        
+        if (isHidden) {
+          // Show the list
+          list.classList.remove('hidden');
+          void list.offsetWidth;
+          list.classList.remove('opacity-0', 'translate-y-[-10px]');
+          // Update to "Hide" immediately when showing
+          button.querySelector('span').textContent = 'Hide Indicator List ↑';
+        } else {
+          // Hide the list
+          list.classList.add('opacity-0', 'translate-y-[-10px]');
+          // Update to "View" immediately when hiding
+          button.querySelector('span').textContent = 'View Full Indicator List ↓';
+          setTimeout(() => {
+            list.classList.add('hidden');
+          }, 300);
+        }
+      });
+    }
+  });
+</script>
 
