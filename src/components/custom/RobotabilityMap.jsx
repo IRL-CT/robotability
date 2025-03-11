@@ -478,7 +478,7 @@ const RobotabilityMap = () => {
             bg-white shadow-lg z-10
             transition-all duration-300
             lt-md:w-full
-            md:w-96
+            md:w-[32rem]
             ${!isSidebarOpen ? 'md:-translate-x-full' : ''}
           `}
         >
@@ -590,7 +590,7 @@ const RobotabilityMap = () => {
         <div className={`
           relative
           transition-all duration-300
-          ${!isSidebarOpen ? 'md:w-full' : 'md:w-[calc(100%-24rem)] md:ml-96'}
+          ${!isSidebarOpen ? 'md:w-full' : 'md:w-[calc(100%-32rem)] md:ml-[32rem]'}
           lt-md:w-full
           lt-md:flex-1
         `}>
