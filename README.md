@@ -1,91 +1,61 @@
-# Brutal - The neobrutalist Astro theme
+# Robotability Project Website
 
-Brutal is a minimal neobrutalist theme for [Astro](https://astro.build/). It's based on Neobrutalist Web Design, a movement that aims to create websites with a minimalistic and functional design. It has some integrations like Image Optimization, RSS, Sitemap, ready to get your SEO done right.
+This is the official website for the Robotability academic project from Cornell Tech. Built with [Astro](https://astro.build/), the site showcases our research on the Robotability Score, a novel metric for quantifying urban robot navigation suitability.
 
-The theme has no JavaScript integration out of the box, but can always be added of course.
+## About Robotability
 
-This template is based on [my own personal website](<https://www.elian.codes/>), with some more generic things added.
+The Robotability Score (R) is a novel metric that quantifies how suitable urban environments are for autonomous robot navigation. Through expert interviews and surveys, we've developed a standardized framework for evaluating urban landscapes to reduce uncertainty in robot deployment while respecting established mobility patterns.
 
-## Usage
+This project was presented at CHI '25: ACM Conference on Human Factors in Computing Systems.
 
-You can bootstrap a new Astro project using Brutal with the following command:
-
-```bash
-# npm
-npm create astro@latest -- --template eliancodes/brutal
-
-# pnpm
-pnpm create astro@latest --template eliancodes/brutal
-
-# yarn
-yarn create astro --template eliancodes/brutal
-```
+## Development
 
 ### Commands
 
 All commands are run from the root of the project, from a terminal:
 
-(Here I use PNPM, no problem if you use NPM or Yarn)
+| Command               | Action                                             |
+| :-------------------- | :------------------------------------------------- |
+| `pnpm install`        | Installs dependencies                              |
+| `pnpm dev`            | Starts local dev server at `localhost:4321`        |
+| `pnpm build`          | Build your production site to `./dist/`            |
+| `pnpm preview`        | Preview your build locally, before deploying       |
+| `pnpm astro ...`      | Run CLI commands like `astro add`, `astro preview` |
+| `pnpm astro --help`   | Get help using the Astro CLI                       |
 
-| Command             | Action                                             |
-| :------------------ | :------------------------------------------------- |
-| `pnpm install`      | Installs dependencies                              |
-| `pnpm dev`          | Starts local dev server at `localhost:4321`        |
-| `pnpm build`        | Build your production site to `./dist/`            |
-| `pnpm preview`      | Preview your build locally, before deploying       |
-| `pnpm astro ...`    | Run CLI commands like `astro add`, `astro preview` |
-| `pnpm astro --help` | Get help using the Astro CLI                       |
+## Technical Overview
 
-## Integrations
+### Built with Astro
+
+This website is built using Astro, a modern static site generator that delivers excellent performance by shipping minimal JavaScript.
 
 ### UnoCSS
 
-In this theme, I'm using [UnoCSS](https://uno.antfu.me/) to generate the CSS. It's a utility-first CSS framework that uses a single class to style elements. It's very easy to use and has a lot of features. It's setup to be completely compatible with TailwindCSS, with the advantage of being able to use PureCSS icons. You can always switch out UnoCSS for TailwindCSS if you want to, without breaking the general styles.
+The site uses [UnoCSS](https://uno.antfu.me/) for styling, a utility-first CSS framework that's compatible with TailwindCSS syntax.
 
-### Sitemap
+### Components
 
-To generate the sitemap, you don't need to do anything. It's automatically generated when you build your site. You'll just need to switch out the `site` on `astro.config.ts` to your own.
+The website features several custom components:
+- Interactive map of Robotability Scores across NYC
+- Collapsible indicator list display
+- Team member display cards
+- YouTube video integration with LazyBoxVideo
 
-```js title="astro.config.mjs"
-import { defineConfig } from 'astro/config';
+## Project Structure
 
-export default defineConfig({
-  site: 'https://example.com',
-});
-```
+- `/src/pages/` - Page templates including the main index and map view
+- `/src/components/` - UI components organized by function
+- `/src/layouts/` - Layout templates for consistent page structure
+- `/public/` - Static assets like team member images and logos
 
-### RSS
+## Resources
 
-The RSS feed is automatically generated from the Markdown files in the `src/content/blog` folder. You can ofcourse completely change this to your own needs.
+- [Paper Link](https://doi.org/10.1145/3706598.3714009)
+- [Code Repository](https://github.com/FAR-LAB/robotability-nyc)
 
-The RSS will output to `https://example.com/feed.xml` by default. You can change this, by renaming `src/pages/feed.xml.js`.
+## Team
 
-### Image
-
-## Components
-
-### `components/blog/`
-
-This directory contains all components for the blog.
-
-### `components/errors/`
-
-This directory contains all error components.
-
-#### `components/errors/404.astro`
-
-This component is used when a page is not found.
-
-### `components/generic/`
-
-This directory contains all generic components, reused over multiple pages.
-
-### `components/home/`
-
-This directory contains all components for the home page.
-
-### `components/layout/`
-
-This directory contains all layout components. For instance, the header and footer and `<head>` section.
-
-If you need more from this theme, don't hesitate to open an issue or reach out to me!
+- Matt Franchi - Computer Science PhD Candidate
+- Maria Teresa Parreira - Information Science PhD Candidate
+- Frank Bu - Computer Science PhD Candidate
+- Wendy Ju - Associate Professor
