@@ -3,11 +3,12 @@ import type { APIRoute } from 'astro';
 import { getCollection } from 'astro:content';
 import satori from 'satori';
 import { html as toReactElement } from 'satori-html';
+import { readFileSync } from 'fs';
+import { join } from 'path';
 
-const fontFile = await fetch(
-  'https://og-playground.vercel.app/inter-latin-ext-700-normal.woff'
-);
-const fontData: ArrayBuffer = await fontFile.arrayBuffer();
+// Load local fonts
+const poppinsFont = readFileSync(join(process.cwd(), 'public', 'fonts', 'poppins.ttf'));
+const dmSerifFont = readFileSync(join(process.cwd(), 'public', 'fonts', 'dm-serif.ttf'));
 
 const height = 630;
 const width = 1200;
@@ -23,18 +24,29 @@ export function getStaticPaths() {
 
 export const GET: APIRoute = async ({ params, props }) => {
   const link = 'https://robotability.cornell.edu';
+  const title = props?.title || 'The Robotability Score';
+  const description = props?.description || 'A novel metric for quantifying urban robot navigation suitability';
+  
+  // Escape HTML entities for safety
+  const escapeHtml = (text: string) => {
+    return text
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#039;');
+  };
+
   const html = toReactElement(`
-  <div style="background-color: white; display: flex; flex-direction: column; height: 100%; padding: 3rem; width: 100%">
-    <div style="display:flex; height: 100%; width: 100%; background-color: white; border: 6px solid black; border-radius: 0.5rem; padding: 2rem; filter: drop-shadow(6px 6px 0 rgb(0 0 0 / 1));">
-      <div style="display: flex; flex-direction: column; justify-content: space-between; width: 100%; filter: drop-shadow()">
-        <div style="display: flex; flex-direction: column; gap: 0.75rem;">  
-          <p style="font-size: 48px;">The Robotability Score</p>
-          <p style="font-size: 38px;">Measuring city streets' readiness for autonomous robots.</p>
-          <p style="font-size: 38px;">Made @ Cornell Tech</p>
-        </div>
-        <div style="display: flex; justify-content: space-between; align-items: baseline; padding-top: -2rem;">
-          <p style="font-size: 32px">${link}</p>
-        </div>
+  <div style="background: linear-gradient(135deg, #f3f3f3 0%, #FFE1E1 100%); display: flex; flex-direction: column; height: 100%; width: 100%; padding: 4rem;">
+    <div style="display: flex; flex-direction: column; justify-content: space-between; height: 100%; width: 100%;">
+      <div style="display: flex; flex-direction: column; gap: 1.5rem;">  
+        <h1 style="font-family: 'DM Serif Text'; font-size: 56px; font-weight: 700; color: #000000; margin: 0; line-height: 1.1;">${escapeHtml(title)}</h1>
+        <p style="font-family: 'Poppins'; font-size: 32px; color: #333333; margin: 0; line-height: 1.4;">${escapeHtml(description)}</p>
+      </div>
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 2rem; padding-top: 2rem; border-top: 2px solid rgba(0, 0, 0, 0.1);">
+        <p style="font-family: 'DM Serif Text'; font-size: 24px; color: #000000; margin: 0; font-weight: 600;">The Robotability Score</p>
+        <p style="font-family: 'Poppins'; font-size: 20px; color: #666666; margin: 0;">${link}</p>
       </div>
     </div>
   </div>
@@ -43,9 +55,16 @@ export const GET: APIRoute = async ({ params, props }) => {
   const svg = await satori(html, {
     fonts: [
       {
-        name: 'Inter Latin',
-        data: fontData,
+        name: 'DM Serif Text',
+        data: dmSerifFont,
         style: 'normal',
+        weight: 700,
+      },
+      {
+        name: 'Poppins',
+        data: poppinsFont,
+        style: 'normal',
+        weight: 400,
       },
     ],
     height,
@@ -54,7 +73,7 @@ export const GET: APIRoute = async ({ params, props }) => {
 
   const opts: ResvgRenderOptions = {
     fitTo: {
-      mode: 'width', // If you need to change the size
+      mode: 'width',
       value: width,
     },
   };
