@@ -19,7 +19,7 @@ export const GET: APIRoute = async () => {
     <div style="display: flex; flex-direction: column; justify-content: space-between; height: 100%; width: 100%;">
       <div style="display: flex; flex-direction: column; gap: 1.5rem;">  
         <h1 style="font-family: 'DM Serif Text'; font-size: 64px; font-weight: 700; color: #000000; margin: 0; line-height: 1.1;">The Robotability Score</h1>
-        <p style="font-family: 'DM Serif Text'; font-size: 36px; color: #333333; margin: 0; line-height: 1.4;">Enabling Harmonious Robot Navigation on Urban Streets</p>
+        <p style="font-family: 'DM Serif Text'; font-size: 36px; color: #333333; margin: 0; margin-top: 1rem; line-height: 1.4;">Enabling Harmonious Robot Navigation on Urban Streets</p>
         <p style="font-family: 'Poppins'; font-size: 28px; color: #666666; margin: 0; margin-top: 0.5rem;">A novel metric for quantifying urban robot navigation suitability</p>
       </div>
       <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 2rem; padding-top: 2rem; border-top: 2px solid rgba(0, 0, 0, 0.1);">

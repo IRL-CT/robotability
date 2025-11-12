@@ -42,7 +42,7 @@ export const GET: APIRoute = async ({ params, props }) => {
     <div style="display: flex; flex-direction: column; justify-content: space-between; height: 100%; width: 100%;">
       <div style="display: flex; flex-direction: column; gap: 1.5rem;">  
         <h1 style="font-family: 'DM Serif Text'; font-size: 56px; font-weight: 700; color: #000000; margin: 0; line-height: 1.1;">${escapeHtml(title)}</h1>
-        <p style="font-family: 'Poppins'; font-size: 32px; color: #333333; margin: 0; line-height: 1.4;">${escapeHtml(description)}</p>
+        <p style="font-family: 'Poppins'; font-size: 32px; color: #333333; margin: 0; margin-top: 1rem; line-height: 1.4;">${escapeHtml(description)}</p>
       </div>
       <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 2rem; padding-top: 2rem; border-top: 2px solid rgba(0, 0, 0, 0.1);">
         <p style="font-family: 'DM Serif Text'; font-size: 24px; color: #000000; margin: 0; font-weight: 600;">The Robotability Score</p>
