@@ -1,0 +1,14 @@
+{
+  "snapshots": [
+    {
+      "date": "2023-08-01",
+      "tag": "baseline",
+      "feature_vectors": false,
+      "urls": {
+        "tiles": "/snapshots/2023-08-01/segments.pmtiles",
+        "census": "/snapshots/2023-08-01/census.pmtiles",
+        "manifest": "/snapshots/2023-08-01/manifest.json"
+      }
+    }
+  ]
+}

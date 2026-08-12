@@ -1,0 +1,22 @@
+{
+  "date": "2023-08-01",
+  "row_count": 464968,
+  "score_min": 0.0367764017620155,
+  "score_max": 0.3681413218905253,
+  "feature_stats": null,
+  "weights_sha256": "6278272614fe5e012874a2804e9e576f21f5a9cd4b952eb9296ccb6932965beb",
+  "partial": false,
+  "feature_vectors": false,
+  "files": [
+    {
+      "name": "segments.pmtiles",
+      "sha256": "216f6070abba182032f77c21569ecb5b90116cac73c9d9145c5f4339e0e26fdd",
+      "bytes": 39903107
+    },
+    {
+      "name": "census.pmtiles",
+      "sha256": "6e0a22aeecd775420fd68b0295cfbc24f454a234f8f5fbf8b8b328955f35e192",
+      "bytes": 733101
+    }
+  ]
+}
