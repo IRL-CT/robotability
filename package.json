@@ -14,7 +14,8 @@
     "start": "astro dev",
     "build": "astro build",
     "preview": "astro preview",
-    "astro": "astro"
+    "astro": "astro",
+    "test": "vitest run"
   },
   "dependencies": {
     "@astrojs/react": "^4.2.0",
@@ -23,10 +24,10 @@
     "@deck.gl/core": "^9.1.2",
     "@deck.gl/layers": "^9.1.2",
     "@deck.gl/mapbox": "^9.1.2",
-    "@luma.gl/core": "9.1.2",
-    "@luma.gl/shadertools": "9.1.2",
     "@luma.gl/constants": "9.1.2",
+    "@luma.gl/core": "9.1.2",
     "@luma.gl/engine": "9.1.2",
+    "@luma.gl/shadertools": "9.1.2",
     "@luma.gl/webgl": "9.1.2",
     "@radix-ui/react-dialog": "^1.1.6",
     "@tailwindcss/vite": "^4.3.3",
@@ -47,13 +48,15 @@
     "@iconify-json/uil": "^1.1.8",
     "@playwright/test": "^1.62.1",
     "@resvg/resvg-js": "^2.6.0",
+    "@types/node": "^26.2.0",
     "@typescript-eslint/parser": "^6.15.0",
     "eslint": "^8.56.0",
     "eslint-plugin-astro": "^0.29.1",
     "eslint-plugin-jsx-a11y": "^6.8.0",
     "prettier": "^3.1.1",
     "prettier-plugin-astro": "^0.12.2",
-    "sharp": "^0.32.6"
+    "sharp": "^0.32.6",
+    "vitest": "^4.1.10"
   },
   "pnpm": {
     "overrides": {
