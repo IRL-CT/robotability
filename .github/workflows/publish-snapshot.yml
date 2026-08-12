@@ -1,0 +1,199 @@
+# Publish a validated cluster snapshot as a GitHub Release.
+#
+# This workflow is IO-bound. It validates, releases, and records.
+# It performs no data transformation. It installs no tippecanoe and
+# no Python data stack. The cluster does all compute (T5).
+#
+# Triggers:
+#   - repository_dispatch [snapshot-ready]: the cluster calls the GitHub
+#     API after a successful run. See pipeline/cluster/RUNBOOK.md.
+#   - workflow_dispatch: manual run. The artifact_ref input names the
+#     branch or tag that holds the snapshot artifacts.
+#   - schedule: poll the snapshots-incoming branch head every 6 hours.
+#     This is the fallback path for the SSH deploy key mode.
+#
+# The artifacts live at the root of the orphan snapshots-incoming branch:
+# segments.geojson, segments.pmtiles, features.parquet, manifest.json.
+name: Publish snapshot
+
+on:
+  repository_dispatch:
+    types: [snapshot-ready]
+  workflow_dispatch:
+    inputs:
+      artifact_ref:
+        description: >-
+          Branch or tag that holds the snapshot artifacts. Use a plain
+          branch/tag name or a full refs/heads/... or refs/tags/... path.
+        required: false
+        default: 'snapshots-incoming'
+        type: string
+  schedule:
+    # Every 6 hours. Poll the snapshots-incoming branch head.
+    - cron: '0 */6 * * *'
+
+# The workflow creates a release and pushes a commit to main.
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      # STE 1: checkout main. The manifest commit lands on main later.
+      - name: Checkout main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+
+      # STE 2: plain Node is enough. No pnpm cache is needed here.
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      # STE 3: resolve the artifact ref.
+      # The artifact_ref input travels in an env var, never inline in a
+      # shell command. This blocks script injection from the input.
+      # The script validates the value as a ref pattern before use:
+      # refs/heads/<name>, refs/tags/<name>, or a plain branch/tag name
+      # made of [A-Za-z0-9._/-]. Anything else fails this step.
+      - name: Resolve artifact ref
+        id: resolve
+        env:
+          ARTIFACT_REF: ${{ inputs.artifact_ref }}
+          EVENT_NAME: ${{ github.event_name }}
+        run: |
+          REF="snapshots-incoming"
+          if [ -n "$ARTIFACT_REF" ]; then
+            REF="$ARTIFACT_REF"
+          fi
+          # Character check first. It applies to every form, including
+          # refs/heads/... and refs/tags/... values. The value is always
+          # quoted after this point, so no shell expansion can occur.
+          case "$REF" in
+            ""|-*|*/|*..*|*//*|*[!A-Za-z0-9._/-]*)
+              echo "ERROR: artifact_ref is not a valid git ref pattern" >&2
+              exit 1
+              ;;
+          esac
+          if ! git ls-remote --exit-code origin "$REF" >/dev/null 2>&1; then
+            if [ "$EVENT_NAME" = "schedule" ]; then
+              echo "::warning::snapshot ref $REF not found. Nothing to publish yet."
+              echo "skip=true" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+            echo "ERROR: snapshot ref $REF not found on origin" >&2
+            exit 1
+          fi
+          echo "ref=$REF" >> "$GITHUB_OUTPUT"
+
+      # STE 4: fetch the snapshot artifacts. The orphan branch checks out
+      # into snapshot-incoming/. The artifacts sit at its root.
+      - name: Fetch snapshot artifacts
+        if: steps.resolve.outputs.skip != 'true'
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ steps.resolve.outputs.ref }}
+          path: snapshot-incoming
+
+      # STE 5: validation gate. publish_flow.mjs runs the contract
+      # validator and gates on its EXIT CODE. It also rejects partial
+      # snapshots and stale dates before any release payload exists.
+      # A non-zero exit fails this step and nothing is published.
+      - name: Validate snapshot
+        if: steps.resolve.outputs.skip != 'true'
+        run: node scripts/ci/publish_flow.mjs snapshot-incoming
+
+      # STE 6: read the snapshot date from the validated manifest.
+      # The date names the release tag: snapshot-<date>.
+      - name: Read snapshot date
+        if: steps.resolve.outputs.skip != 'true'
+        id: snap
+        run: |
+          DATE=$(node -e "process.stdout.write(JSON.parse(require('fs').readFileSync('snapshot-incoming/manifest.json','utf8')).date)")
+          echo "date=$DATE" >> "$GITHUB_OUTPUT"
+          echo "tag=snapshot-$DATE" >> "$GITHUB_OUTPUT"
+
+      # STE 7: create the release and upload the three artifacts.
+      # An existing tag is reused, so a re-run stays idempotent.
+      - name: Create release and upload assets
+        if: steps.resolve.outputs.skip != 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.snap.outputs.tag }}
+          DATE: ${{ steps.snap.outputs.date }}
+        run: |
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            echo "release $TAG already exists. Reusing it."
+          else
+            gh release create "$TAG" \
+              --title "Snapshot $DATE" \
+              --notes "Robotability cluster snapshot $DATE. Validated against pipeline/contract/cluster_contract.md."
+          fi
+          gh release upload "$TAG" \
+            snapshot-incoming/segments.pmtiles \
+            snapshot-incoming/features.parquet \
+            snapshot-incoming/manifest.json \
+            --clobber
+
+      # STE 8: verify asset serving. Release assets must serve CORS
+      # headers and support Range requests. The map needs both.
+      # A serving failure does NOT fail the workflow. It sets the
+      # mirror_needed output and emits a warning annotation instead.
+      - name: Verify asset serving
+        if: steps.resolve.outputs.skip != 'true'
+        id: serving
+        env:
+          TAG: ${{ steps.snap.outputs.tag }}
+        run: |
+          BASE="https://github.com/$GITHUB_REPOSITORY/releases/download/$TAG"
+          OK=true
+          for FILE in segments.pmtiles features.parquet manifest.json; do
+            URL="$BASE/$FILE"
+            HEADERS=$(curl -sS -L -I "$URL" 2>/dev/null || true)
+            if ! printf '%s' "$HEADERS" | grep -qi '^access-control-allow-origin: \*'; then
+              echo "asset $FILE lacks access-control-allow-origin: *"
+              OK=false
+            fi
+          done
+          # One Range probe. The CDN must answer 206 for byte ranges.
+          RANGE_STATUS=$(curl -sS -L -I -o /dev/null -w '%{http_code}' \
+            -H "Range: bytes=0-0" "$BASE/segments.pmtiles" 2>/dev/null || echo 000)
+          if [ "$RANGE_STATUS" != "206" ]; then
+            echo "Range probe returned HTTP $RANGE_STATUS, expected 206"
+            OK=false
+          fi
+          if [ "$OK" = "true" ]; then
+            echo "mirror_needed=false" >> "$GITHUB_OUTPUT"
+            echo "asset serving verified: CORS header and Range support present"
+          else
+            echo "::warning::release asset serving check failed. A mirror may be needed."
+            echo "mirror_needed=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      # STE 9: update the site manifest on main. This runs the same
+      # validated flow against the real public/manifest.json. The entry
+      # carries the release tag, the asset URL template, and the stats.
+      - name: Update public/manifest.json
+        if: steps.resolve.outputs.skip != 'true'
+        run: node scripts/ci/publish_flow.mjs snapshot-incoming
+
+      # STE 10: commit and push the manifest update.
+      # NOTE: this push to main triggers deploy.yml on purpose. The site
+      # must redeploy so the map sees the new snapshot entry.
+      - name: Commit manifest update
+        if: steps.resolve.outputs.skip != 'true'
+        env:
+          DATE: ${{ steps.snap.outputs.date }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add public/manifest.json
+          if git diff --cached --quiet; then
+            echo "manifest unchanged. Nothing to commit."
+          else
+            git commit -m "chore(data): publish snapshot $DATE"
+            git push
+          fi
