@@ -18,11 +18,13 @@ const { title, description, ogImage } = Astro.props;
 ---
 
 <head>
-  <LocalFont />
+  <!-- The theme script runs before first paint. It sets data-theme. -->
+  <script is:inline src='/toggle-theme.js'></script>
+
   <meta charset='utf-8' />
   <meta name='viewport' content='width=device-width, initial-scale=1' />
   <meta name='generator' content={Astro.generator} />
-
+  <meta name='theme-color' content='' />
 
   <meta name='title' content={`${title}`} />
   <meta name='description' content={description} />
@@ -43,6 +45,33 @@ const { title, description, ogImage } = Astro.props;
   <link rel='icon' type='image/svg' href='/favicon.png' />
 
   <title>{title}</title>
+
+  <!-- Fonts. The TypeKit kit krx4hav provides the parabolica families.
+       The embed pattern matches the personal-site reference layout. -->
+  <link rel='preconnect' href='https://use.typekit.net' crossorigin />
+  <link rel='stylesheet' href='https://use.typekit.net/krx4hav.css' />
+
+  <!-- Warn once if the kit does not load within 3 seconds.
+       The site then uses the fallback font stack. -->
+  <script is:inline>
+    (function () {
+      if (window.__robotabilityTypekitChecked) return;
+      window.__robotabilityTypekitChecked = true;
+      setTimeout(function () {
+        var found = false;
+        document.fonts.forEach(function (face) {
+          if (/parabolica/i.test(face.family)) found = true;
+        });
+        if (!found) {
+          console.warn(
+            'TypeKit kit krx4hav did not load within 3s. The site uses the fallback font stack.'
+          );
+        }
+      }, 3000);
+    })();
+  </script>
+
+  <LocalFont />
 
   <ViewTransitions />
 

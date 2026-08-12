@@ -1,0 +1,22 @@
+---
+/**
+ * SiteFooter — single-line copyright footer.
+ * The line uses opacity 0.75, like .copyright-wrapper on the reference site.
+ */
+const year = new Date().getFullYear();
+---
+
+<footer data-testid='site-footer' class='mt-auto bg-skin-fill'>
+  <div class='mx-auto flex w-full max-w-6xl items-center justify-center px-6 py-6'>
+    <p class='copyright'>
+      &copy; {year} Robotability Project, Cornell Tech. All rights reserved.
+    </p>
+  </div>
+</footer>
+
+<style>
+  .copyright {
+    font-size: 0.9rem;
+    opacity: 0.75;
+  }
+</style>

@@ -1,6 +1,6 @@
 ---
 import type { CollectionEntry } from 'astro:content';
-import { Pill, Button } from '@eliancodes/brutal-ui';
+import Button from '../ui/Button.astro';
 import SummaryCard from '../generic/SummaryCard.astro';
 
 interface Props {
@@ -29,7 +29,7 @@ const { post } = Astro.props;
             return (
               <li>
                 <a class="sanchez" href={`/blog/tags/${tag.toLowerCase()}/`}>
-                  <Pill>{tag}</Pill>
+                  <span class="tag-pill">{tag}</span>
                 </a>
               </li>
             );
@@ -46,3 +46,15 @@ const { post } = Astro.props;
     </div>
   </div>
 </SummaryCard>
+
+<style>
+  /* Plain pill. It replaces the removed Pill component. */
+  .tag-pill {
+    display: inline-block;
+    padding: 0.25rem 0.75rem;
+    font-size: 0.875rem;
+    color: rgb(var(--color-text-base));
+    background-color: rgb(var(--color-card) / 0.5);
+    border: 1px solid rgb(var(--color-border) / 0.55);
+  }
+</style>

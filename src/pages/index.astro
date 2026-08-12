@@ -2,9 +2,8 @@
 import Layout from '@layouts/Default.astro';
 import RecentBlogPosts from '@components/generic/RecentBlogPosts.astro';
 import MobileSocials from '@components/home/MobileSocials.astro';
-import { Pill } from '@eliancodes/brutal-ui';
-import { Button } from '@eliancodes/brutal-ui';
-import { Card } from '@eliancodes/brutal-ui';
+import Card from '@components/ui/Card.astro';
+import Button from '@components/ui/Button.astro';
 import LazyBoxVideo from '@components/custom/LazyBoxVideo.astro';
 import "../styles/global.css";
 
@@ -54,9 +53,9 @@ const teamMembers = [
   <main class='p-6' style="">
     <section id='about' class='flex flex-col gap-8 mt-4 max-w-6xl mx-auto'>
       {/* Main Content */}
-      <Card color="#f3f3f3">
+      <Card>
         <div class="p-6">
-            <h2 class='lg:text-5xl mb-[-1rem] dm-serif underline'>
+            <h2 class='lg:text-5xl dm-serif underline'>
               The Robotability Score
             </h2>
           <h2 class='lg:text-3xl mb-12 dm-serif'>
@@ -73,10 +72,10 @@ const teamMembers = [
             </h3>
             </div>
           <div id="materials-buttons" class="poppins text-lg flex flex-row gap-8">
-            <Button color="#FFE1E1" target={'_blank'} href='https://dl.acm.org/doi/full/10.1145/3706598.3714009'>
+            <Button href='https://dl.acm.org/doi/full/10.1145/3706598.3714009' external>
               <span class="font-bold no-underline hover:no-underline">Read Paper &rarr;</span>
             </Button>
-            <Button color="#FFE1E1" target={'_blank'} href="https://github.com/FAR-LAB/robotability-nyc">
+            <Button href="https://github.com/FAR-LAB/robotability-nyc" external>
               <span class="font-bold no-underline hover:no-underline">Code Repository &rarr;</span>
             </Button>
           </div>
@@ -111,7 +110,7 @@ const teamMembers = [
         </div>
       </Card>
 
-      <Card color="#f3f3f3">
+      <Card>
         <h3 class='text-2xl lg:text-4xl mb-4 dm-serif'>
           What is The Robotability Score?
         </h3>
@@ -124,8 +123,8 @@ const teamMembers = [
       </Card>
 
    
-      <Card color="#f3f3f3">
-        <Button href="map" color="#FFE1E1">
+      <Card>
+        <Button href="map">
           <span class="poppins text-2xl lg:text-4xl dm-serif">Interactive Map &rarr;</span>
         </Button>
         <p class='poppins mt-4'>
@@ -133,18 +132,18 @@ const teamMembers = [
         </p>
       </Card>
 
-      <Card color="#f3f3f3">
+      <Card>
         <h2 class='text-2xl lg:text-4xl mb-8 dm-serif'>
           Key Features
         </h2>
         <div class='flex gap-4 flex-wrap mb-4'>
           {
             keyFeatures.map((item) => (
-              <Pill color="#FFE1E1">
+              <span class='feature-pill'>
                 <span class='sanchez'>
                   {item.name}: {item.weight}
                 </span>
-              </Pill>
+              </span>
             ))
           }
           <button
@@ -163,7 +162,7 @@ const teamMembers = [
         id="indicatorsList" 
         class="hidden opacity-0 transform translate-y-[-10px] transition-all duration-300 ease-in-out -mt-4"
       >
-        <Card color="#f3f3f3">
+        <Card>
           <h3 class="text-2xl mb-6 dm-serif">Complete Indicator List</h3>
           <p class="poppins mb-6 text-gray-700">Each indicator is paired with a sample set of weights to show how the Robotability Score might change under different indicator values.</p>
           
@@ -203,7 +202,7 @@ const teamMembers = [
         </Card>
       </div>
 
-      <Card color="#f3f3f3">
+      <Card>
         <div class='flex flex-col justify-between items-start gap-4'>
           <LazyBoxVideo 
             videoId="o52MZ1AHyjA"
@@ -212,7 +211,7 @@ const teamMembers = [
         </div>
       </Card>
 
-      <Card color="#f3f3f3">
+      <Card>
         <h3 class='text-2xl lg:text-4xl mb-4 dm-serif'>
           Paper Citation
         </h3>
@@ -236,7 +235,7 @@ const teamMembers = [
 '}'}</code></pre>
         </div>
         <div class="flex mt-4">
-          <Button color="#FFE1E1" target={'_blank'} href='https://dl.acm.org/doi/full/10.1145/3706598.3714009'>
+          <Button href='https://dl.acm.org/doi/full/10.1145/3706598.3714009' external>
             <span class="font-bold no-underline hover:no-underline">Copy Citation</span>
           </Button>
         </div>
@@ -253,6 +252,15 @@ const teamMembers = [
     }
     .shadow-brutal {
       box-shadow: 3px 3px 0 0 rgba(0, 0, 0, 1);
+    }
+    /* Plain pill. It replaces the removed Pill component. */
+    .feature-pill {
+      display: inline-block;
+      padding: 0.25rem 0.75rem;
+      font-size: 0.875rem;
+      color: rgb(var(--color-text-base));
+      background-color: rgb(var(--color-card) / 0.5);
+      border: 1px solid rgb(var(--color-border) / 0.55);
     }
     #indicatorsList {
       transition: opacity 0.3s ease-in-out,

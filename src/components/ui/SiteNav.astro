@@ -1,0 +1,98 @@
+---
+/**
+ * SiteNav — site navigation bar.
+ * The item list is prop-driven. The default list is Home and Map.
+ * A later task extends the list.
+ */
+export interface NavItem {
+  /** Visible link text. */
+  name: string;
+  /** Link target. */
+  url: string;
+  /** Open the link in a new tab. */
+  external?: boolean;
+}
+
+interface Props {
+  /** Navigation items. Defaults to Home and Map. */
+  items?: NavItem[];
+  /** Current page path. The matching link gets aria-current. */
+  currentPath?: string;
+  /** Optional page title. Rendered as a hidden h1 for SEO. */
+  pageTitle?: string;
+}
+
+const {
+  items = [
+    { name: 'Home', url: '/' },
+    { name: 'Map', url: '/map' },
+  ],
+  currentPath,
+  pageTitle,
+} = Astro.props;
+---
+
+<header data-testid='site-nav' class='border-b border-skin-line bg-skin-fill'>
+  {pageTitle && <h1 class='sr-only'>{pageTitle}</h1>}
+  <nav
+    aria-label='Site'
+    class='mx-auto flex w-full max-w-6xl items-center justify-between gap-4 px-6 py-4'
+  >
+    <a href='/' class='site-nav-logo'>
+      Robotability
+    </a>
+    <ul class='flex items-center gap-6'>
+      {
+        items.map((item) => (
+          <li>
+            <a
+              href={item.url}
+              class:list={[
+                'site-nav-link',
+                { 'site-nav-link--active': currentPath === item.url },
+              ]}
+              aria-current={currentPath === item.url ? 'page' : undefined}
+              {...(item.external
+                ? { target: '_blank', rel: 'noopener noreferrer' }
+                : {})}
+            >
+              {item.name}
+            </a>
+          </li>
+        ))
+      }
+    </ul>
+  </nav>
+</header>
+
+<style>
+  .site-nav-logo {
+    font-family: var(--font-display);
+    font-weight: 700;
+    font-size: 1.125rem;
+    color: rgb(var(--color-text-base));
+    text-decoration: none;
+    transition: var(--theme-transition);
+  }
+
+  .site-nav-logo:hover {
+    color: rgb(var(--color-accent));
+  }
+
+  .site-nav-link {
+    font-family: var(--font-body);
+    font-weight: 500;
+    color: rgb(var(--color-text-base));
+    text-decoration: none;
+    padding: 0.25rem 0.5rem;
+    transition: var(--theme-transition);
+  }
+
+  .site-nav-link:hover {
+    color: rgb(var(--color-accent));
+  }
+
+  .site-nav-link--active {
+    font-weight: 700;
+  }
+</style>

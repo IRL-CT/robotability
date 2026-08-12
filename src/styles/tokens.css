@@ -1,0 +1,31 @@
+/*
+ * Design tokens for the Robotability site.
+ * Values are copied from the personal-site reference
+ * (personal_site_for_design_inspo/src/styles/base.css).
+ * Each value is an RGB triplet. Use it as rgb(var(--color-<name>)).
+ * The dark theme overrides the same names under html[data-theme="dark"].
+ * toggle-theme.js sets the data-theme attribute on the html element.
+ */
+
+:root,
+html[data-theme="light"] {
+  --color-fill: 251, 254, 251;
+  --color-text-base: 40, 39, 40;
+  --color-accent: 0, 108, 172;
+  --color-card: 230, 230, 230;
+  --color-card-muted: 205, 205, 205;
+  --color-border: 236, 233, 233;
+
+  /* Shared transition for theme switches. */
+  --theme-transition: background-color 0.3s ease, color 0.3s ease,
+    border-color 0.3s ease, fill 0.3s ease;
+}
+
+html[data-theme="dark"] {
+  --color-fill: 33, 39, 55;
+  --color-text-base: 234, 237, 243;
+  --color-accent: 255, 107, 1;
+  --color-card: 52, 63, 96;
+  --color-card-muted: 138, 51, 2;
+  --color-border: 171, 75, 8;
+}
