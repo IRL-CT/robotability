@@ -1,0 +1,193 @@
+[
+  {
+    "feature": "sidewalk_width",
+    "displayName": "Sidewalk Width",
+    "weight": "0.06806833613639274",
+    "polarity": 1,
+    "sourceType": "nyc_open_data",
+    "datasetId": ["52n9-sdep"],
+    "sourceUrl": null
+  },
+  {
+    "feature": "pedestrian_density",
+    "displayName": "Pedestrian Density",
+    "weight": "0.09445576675004053",
+    "polarity": -1,
+    "sourceType": "in_house",
+    "datasetId": null,
+    "sourceUrl": null
+  },
+  {
+    "feature": "street_furniture_density",
+    "displayName": "Density of Street Furniture",
+    "weight": "0.06752114455511304",
+    "polarity": -1,
+    "sourceType": "nyc_open_data",
+    "datasetId": [
+      "8znf-7b2c",
+      "5bgh-vtsn",
+      "t4f2-8md7",
+      "dimy-qyej",
+      "yh4a-g3fj",
+      "kuxa-tauh",
+      "uvpi-gqnh",
+      "w9zq-xm8b",
+      "693u-uax6",
+      "s4kf-3yrf",
+      "v57i-gtxb",
+      "qt6m-xctn",
+      "sxx4-xhzg"
+    ],
+    "sourceUrl": null
+  },
+  {
+    "feature": "sidewalk_roughness",
+    "displayName": "Sidewalk Roughness",
+    "weight": "0.04593514200834298",
+    "polarity": -1,
+    "sourceType": "constant",
+    "datasetId": null,
+    "sourceUrl": null
+  },
+  {
+    "feature": "surface_condition",
+    "displayName": "Surface Condition",
+    "weight": "0.07682933579593197",
+    "polarity": 1,
+    "sourceType": "nyc_open_data",
+    "datasetId": ["rqhp-hivt"],
+    "sourceUrl": null
+  },
+  {
+    "feature": "communication_infrastructure",
+    "displayName": "Wireless Communication Infrastructure",
+    "weight": "0.05845165469318187",
+    "polarity": 1,
+    "sourceType": "external_public",
+    "datasetId": null,
+    "sourceUrl": "https://broadbandmap.fcc.gov/data-download/nationwide-data?version=dec2023"
+  },
+  {
+    "feature": "slope_gradient",
+    "displayName": "Slope Gradient",
+    "weight": "0.04832231448153131",
+    "polarity": -1,
+    "sourceType": "external_public",
+    "datasetId": null,
+    "sourceUrl": "https://sa-static-customer-assets-us-east-1-fedramp-prod.s3.amazonaws.com/data.cityofnewyork.us/NYC_DEM_1ft_Int.zip"
+  },
+  {
+    "feature": "charging_station_proximity",
+    "displayName": "Proximity to Charging Stations",
+    "weight": "0.025316489931061576",
+    "polarity": 1,
+    "sourceType": "external_public",
+    "datasetId": null,
+    "sourceUrl": "https://gbfs.citibikenyc.com/gbfs/en/station_information.json"
+  },
+  {
+    "feature": "curb_ramp_availability",
+    "displayName": "Curb Ramp Availability",
+    "weight": "0.060102970276542725",
+    "polarity": 1,
+    "sourceType": "nyc_open_data",
+    "datasetId": ["ufzp-rrqu"],
+    "sourceUrl": null
+  },
+  {
+    "feature": "crowd_dynamics",
+    "displayName": "Crowd Dynamics",
+    "weight": "0.07621927189475182",
+    "polarity": 1,
+    "sourceType": "nyc_open_data",
+    "datasetId": ["kdig-pewd"],
+    "sourceUrl": null
+  },
+  {
+    "feature": "traffic_management",
+    "displayName": "Traffic Management Systems",
+    "weight": "0.04638333896814371",
+    "polarity": 1,
+    "sourceType": "nyc_open_data",
+    "datasetId": [
+      "79sh-heg3",
+      "hz4p-9f7s",
+      "mqt5-ctec",
+      "wqhs-q6wd",
+      "8kuj-2n3u"
+    ],
+    "sourceUrl": null
+  },
+  {
+    "feature": "surveillance_coverage",
+    "displayName": "Surveillance Coverage",
+    "weight": "0.02281272971765975",
+    "polarity": 1,
+    "sourceType": "in_house",
+    "datasetId": null,
+    "sourceUrl": null
+  },
+  {
+    "feature": "zoning_laws",
+    "displayName": "Zoning Laws and Regulation",
+    "weight": "0.04146601033693057",
+    "polarity": 1,
+    "sourceType": "nyc_open_data",
+    "datasetId": ["5mad-ntua"],
+    "sourceUrl": null
+  },
+  {
+    "feature": "bike_lane_availability",
+    "displayName": "Bike Lane Availability",
+    "weight": "0.022603749599280413",
+    "polarity": 1,
+    "sourceType": "nyc_open_data",
+    "datasetId": ["mzxg-pwib"],
+    "sourceUrl": null
+  },
+  {
+    "feature": "gps_signal_strength",
+    "displayName": "GPS Signal Strength",
+    "weight": "0.048359700811054354",
+    "polarity": 1,
+    "sourceType": "constant",
+    "datasetId": null,
+    "sourceUrl": null
+  },
+  {
+    "feature": "bicycle_traffic",
+    "displayName": "Bicycle Traffic",
+    "weight": "0.03068282361247861",
+    "polarity": -1,
+    "sourceType": "in_house",
+    "datasetId": null,
+    "sourceUrl": null
+  },
+  {
+    "feature": "vehicle_traffic",
+    "displayName": "Vehicle Traffic",
+    "weight": "0.04745443062510741",
+    "polarity": -1,
+    "sourceType": "in_house",
+    "datasetId": null,
+    "sourceUrl": null
+  },
+  {
+    "feature": "digital_map_existence",
+    "displayName": "Existence of Detailed Digital Maps",
+    "weight": "0.04850786858987462",
+    "polarity": 1,
+    "sourceType": "constant",
+    "datasetId": null,
+    "sourceUrl": null
+  },
+  {
+    "feature": "intersection_safety",
+    "displayName": "Intersection Safety",
+    "weight": "0.07050692121657998",
+    "polarity": -1,
+    "sourceType": "nyc_open_data",
+    "datasetId": ["h9gi-nx95"],
+    "sourceUrl": null
+  }
+]

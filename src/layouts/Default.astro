@@ -13,13 +13,24 @@ interface Props {
 }
 
 const { title, description, classList, pageTitle, ogImage } = Astro.props;
+
+// Site navigation items. SiteNav takes them through its items prop.
+// Keep this list in sync with navigationItems in
+// src/components/layout/BaseNavigation.astro.
+const navigationItems = [
+  { name: 'Map', url: '/map' },
+  { name: 'Methodology', url: '/methodology' },
+  { name: 'Blog', url: '/blog' },
+  { name: 'Paper', url: 'https://doi.org/10.1145/3706598.3714009', external: true },
+  { name: 'Code', url: 'https://github.com/FAR-LAB/robotability-nyc', external: true },
+];
 ---
 
 <html lang='en' class='h-full'>
   <BaseHead ogImage={ogImage} title={title} description={description} />
 
   <body class:list={[classList]}>
-    <SiteNav currentPath={Astro.url.pathname} {pageTitle} />
+    <SiteNav items={navigationItems} currentPath={Astro.url.pathname} {pageTitle} />
     <slot />
     <SiteFooter />
   </body>
