@@ -1,19 +1,28 @@
 // MapCanvas renders the Robotability map.
 // It uses maplibre-gl for rendering and the pmtiles package for tile IO.
 // The component is client-only. Astro never renders it on the server.
-import { useEffect, useRef, useState } from 'react';
+// It also hosts the breakdown panel, the layer controls, and the
+// deployment video sidebar.
+import { useCallback, useEffect, useRef, useState } from 'react';
 import maplibregl from 'maplibre-gl';
 import type {
   ExpressionSpecification,
   InterpolationSpecification,
-  LayerSpecification,
   Map as MapLibreMap,
   MapLayerMouseEvent,
-  SourceSpecification,
 } from 'maplibre-gl';
 import { Protocol } from 'pmtiles';
 import 'maplibre-gl/dist/maplibre-gl.css';
-import { SCORE_COLORS, SCORE_DOMAIN_MAX, SCORE_DOMAIN_MIN } from './constants';
+import BreakdownPanel from './BreakdownPanel';
+import { SCORE_COLORS, SCORE_DOMAIN_MAX, SCORE_DOMAIN_MIN, type DeploymentSite } from './constants';
+import {
+  DEPLOYMENTS_LAYER_ID,
+  deploymentEmbedUrl,
+  deploymentLayerEntry,
+  refreshDeploymentPaint,
+} from './DeploymentMarkers';
+import LayerControls, { type LayerVisibility, type ToggleableLayer } from './LayerControls';
+import { type RegisteredLayer, type SnapshotEntry } from './types';
 
 // Test hooks. Playwright reads the map instance and the active style URL
 // from the window object to assert the map state. The double-underscore
@@ -22,6 +31,9 @@ declare global {
   interface Window {
     __robotabilityMap?: MapLibreMap;
     __robotabilityMapStyleUrl?: string;
+    // T10 stub. Switches the active snapshot by manifest date. The time
+    // scrubber task replaces this hook with real UI.
+    __robotabilityLoadSnapshot?: (date: string) => void;
   }
 }
 
@@ -45,19 +57,8 @@ const SEGMENTS_SOURCE_MAXZOOM = 14;
 const CENSUS_SOURCE_MINZOOM = 4;
 const CENSUS_SOURCE_MAXZOOM = 14;
 
-// One entry in the layer-spec registry.
-// The source spec and the layer spec travel together. A style switch
-// removes every source and layer from the map. The restore step re-adds
-// every registry entry, so no layer is lost.
-export type RegisteredLayer = {
-  readonly sourceId: string;
-  readonly source: SourceSpecification;
-  readonly layer: LayerSpecification;
-};
-
 // The layer-spec registry. Every layer the map shows is registered here.
-// Later tasks add their layers through this registry too, so a style
-// switch re-adds them as well.
+// A style switch re-adds every entry, so no layer is lost.
 const layerRegistry = new Map<string, RegisteredLayer>();
 
 // Register the PMTiles protocol once. The guard makes this idempotent:
@@ -76,21 +77,6 @@ function ensurePmtilesProtocol(): void {
 function styleUrlForTheme(theme: string | null): string {
   return theme === 'dark' ? DARK_STYLE_URL : LIGHT_STYLE_URL;
 }
-
-// Shape of one snapshot entry in public/manifest.json.
-// The tiles URL appears under "segments" in new manifests and under
-// "tiles" in the T4 baseline manifest. The parser accepts both keys.
-type SnapshotUrls = {
-  readonly segments?: string;
-  readonly census?: string;
-};
-
-type SnapshotEntry = {
-  readonly date: string;
-  readonly tag?: string;
-  readonly feature_vectors?: boolean;
-  readonly urls: SnapshotUrls;
-};
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null;
@@ -115,6 +101,7 @@ function parseManifest(raw: unknown): SnapshotEntry[] {
     const tilesUrl = urls['segments'] ?? urls['tiles'];
     if (typeof tilesUrl !== 'string') continue;
     const censusUrl = urls['census'];
+    const parquetUrl = urls['parquet'] ?? urls['features'];
     entries.push({
       date,
       tag: typeof item['tag'] === 'string' ? item['tag'] : undefined,
@@ -125,6 +112,7 @@ function parseManifest(raw: unknown): SnapshotEntry[] {
       urls: {
         segments: tilesUrl,
         census: typeof censusUrl === 'string' ? censusUrl : undefined,
+        parquet: typeof parquetUrl === 'string' ? parquetUrl : undefined,
       },
     });
   }
@@ -199,9 +187,27 @@ function registerLayer(map: MapLibreMap, key: string, entry: RegisteredLayer): v
   }
 }
 
+// Remove one registered layer and its source from the map and registry.
+// Missing layers and sources are ignored.
+function unregisterLayer(map: MapLibreMap, key: string): void {
+  const entry = layerRegistry.get(key);
+  layerRegistry.delete(key);
+  if (!entry) return;
+  if (map.getLayer(entry.layer.id)) {
+    map.removeLayer(entry.layer.id);
+  }
+  if (map.getSource(entry.sourceId)) {
+    map.removeSource(entry.sourceId);
+  }
+}
+
 // Switch the basemap style. Capture the view first. Re-add every
 // registered layer after the new style loads. Restore the view last.
-function switchStyle(map: MapLibreMap, nextStyleUrl: string): void {
+function switchStyle(
+  map: MapLibreMap,
+  nextStyleUrl: string,
+  afterRestore: (map: MapLibreMap) => void
+): void {
   const view = {
     center: map.getCenter(),
     zoom: map.getZoom(),
@@ -217,6 +223,7 @@ function switchStyle(map: MapLibreMap, nextStyleUrl: string): void {
     }
     try {
       applyRegisteredLayers(map);
+      afterRestore(map);
     } catch (error) {
       console.error('Failed to restore map layers after a theme switch.', error);
     }
@@ -230,10 +237,40 @@ function scoreToPercent(score: number): number {
   return ((score - SCORE_DOMAIN_MIN) / (SCORE_DOMAIN_MAX - SCORE_DOMAIN_MIN)) * 100;
 }
 
+// The clicked segment shown in the breakdown panel.
+type PanelSegment = {
+  readonly id: number;
+  readonly score: number;
+};
+
+// The deployment site shown in the video sidebar.
+type SidebarVideo = {
+  readonly name: string;
+  readonly site: DeploymentSite;
+};
+
+// Default layer visibility. Census starts off. The others start on.
+const DEFAULT_VISIBILITY: LayerVisibility = {
+  segments: true,
+  census: false,
+  deployments: true,
+};
+
 export default function MapCanvas() {
   const containerRef = useRef<HTMLDivElement | null>(null);
+  const mapRef = useRef<MapLibreMap | null>(null);
+  // The visibility ref mirrors the state. The theme-switch restore runs
+  // inside the map effect and reads the ref.
+  const visibilityRef = useRef<LayerVisibility>(DEFAULT_VISIBILITY);
+  // The parsed manifest entries. The snapshot-switch hook reads them.
+  const manifestRef = useRef<SnapshotEntry[]>([]);
+
   // The error message for the visible banner. null means no error.
   const [error, setError] = useState<string | null>(null);
+  const [visibility, setVisibility] = useState<LayerVisibility>(DEFAULT_VISIBILITY);
+  const [activeEntry, setActiveEntry] = useState<SnapshotEntry | null>(null);
+  const [panelSegment, setPanelSegment] = useState<PanelSegment | null>(null);
+  const [sidebarVideo, setSidebarVideo] = useState<SidebarVideo | null>(null);
 
   useEffect(() => {
     const container = containerRef.current;
@@ -253,6 +290,7 @@ export default function MapCanvas() {
       pitch: INITIAL_PITCH,
       bearing: INITIAL_BEARING,
     });
+    mapRef.current = map;
 
     // Expose the map for the Playwright spec. See the declare-global
     // comment at the top of this file.
@@ -273,20 +311,8 @@ export default function MapCanvas() {
     tooltip.style.fontSize = '14px';
     container.appendChild(tooltip);
 
-    const showTooltip = (event: MapLayerMouseEvent): void => {
-      const feature = event.features?.[0];
-      if (!feature) {
-        tooltip.style.display = 'none';
-        return;
-      }
-      const score: unknown = feature.properties['score'];
-      if (typeof score !== 'number') {
-        tooltip.style.display = 'none';
-        return;
-      }
-      const id: unknown = feature.properties['id'];
-      const label = typeof id === 'number' ? String(id) : 'unknown';
-      tooltip.textContent = `Score: ${scoreToPercent(score).toFixed(1)}% | Segment ${label}`;
+    const positionTooltip = (event: MapLayerMouseEvent, text: string): void => {
+      tooltip.textContent = text;
       tooltip.style.display = 'block';
       tooltip.style.left = `${event.point.x}px`;
       tooltip.style.top = `${event.point.y}px`;
@@ -297,8 +323,113 @@ export default function MapCanvas() {
       tooltip.style.display = 'none';
     };
 
-    // Load the manifest and register the snapshot layers.
-    const loadSnapshot = async (): Promise<void> => {
+    const showSegmentTooltip = (event: MapLayerMouseEvent): void => {
+      const feature = event.features?.[0];
+      if (!feature) {
+        hideTooltip();
+        return;
+      }
+      const score: unknown = feature.properties['score'];
+      if (typeof score !== 'number') {
+        hideTooltip();
+        return;
+      }
+      const id: unknown = feature.properties['id'];
+      const label = typeof id === 'number' ? String(id) : 'unknown';
+      positionTooltip(event, `Score: ${scoreToPercent(score).toFixed(1)}% | Segment ${label}`);
+    };
+
+    const showDeploymentTooltip = (event: MapLayerMouseEvent): void => {
+      const feature = event.features?.[0];
+      const name: unknown = feature?.properties['name'];
+      if (typeof name !== 'string') {
+        hideTooltip();
+        return;
+      }
+      positionTooltip(event, name);
+    };
+
+    // Apply one snapshot entry to the map. It replaces the segments
+    // source and adds or removes the census source. It also resets the
+    // layer visibility and closes the panel.
+    const applySnapshot = (entry: SnapshotEntry): void => {
+      const run = (): void => {
+        try {
+          unregisterLayer(map, 'segments');
+          unregisterLayer(map, 'census');
+
+          const tilesUrl = entry.urls.segments;
+          if (!tilesUrl) {
+            if (!disposed) setError(`The snapshot ${entry.date} has no tiles URL.`);
+            return;
+          }
+          registerLayer(map, 'segments', {
+            sourceId: 'segments-source',
+            source: {
+              type: 'vector',
+              url: `pmtiles://${tilesUrl}`,
+              minzoom: SEGMENTS_SOURCE_MINZOOM,
+              maxzoom: SEGMENTS_SOURCE_MAXZOOM,
+              attribution: `Robotability snapshot ${entry.date}`,
+            },
+            layer: {
+              id: 'segments',
+              type: 'line',
+              source: 'segments-source',
+              'source-layer': 'segments',
+              paint: {
+                'line-color': scoreColorExpression(),
+                'line-width': scoreWidthExpression(),
+                'line-opacity': 0.9,
+              },
+            },
+          });
+          if (entry.urls.census) {
+            registerLayer(map, 'census', {
+              sourceId: 'census-source',
+              source: {
+                type: 'vector',
+                url: `pmtiles://${entry.urls.census}`,
+                minzoom: CENSUS_SOURCE_MINZOOM,
+                maxzoom: CENSUS_SOURCE_MAXZOOM,
+              },
+              layer: {
+                id: 'census',
+                type: 'line',
+                source: 'census-source',
+                'source-layer': 'census',
+                // Off by default. The layer controls toggle it on.
+                layout: { visibility: 'none' },
+                paint: {
+                  'line-color': 'rgba(100, 100, 100, 0.4)',
+                  'line-width': 1,
+                },
+              },
+            });
+          }
+
+          // Reset visibility to the defaults. The registry specs carry
+          // the same defaults.
+          visibilityRef.current = DEFAULT_VISIBILITY;
+          if (!disposed) {
+            setVisibility(DEFAULT_VISIBILITY);
+            setActiveEntry(entry);
+            setPanelSegment(null);
+          }
+        } catch (err) {
+          console.error('Map layer registration failed.', err);
+          if (!disposed) setError('The map layers could not be added.');
+        }
+      };
+      if (map.isStyleLoaded()) {
+        run();
+      } else {
+        map.once('styledata', run);
+      }
+    };
+
+    // Load the manifest and apply the newest snapshot.
+    const loadManifest = async (): Promise<void> => {
       let entries: SnapshotEntry[];
       try {
         const response = await fetch('/manifest.json');
@@ -314,68 +445,78 @@ export default function MapCanvas() {
         return;
       }
       if (disposed) return;
-      const entry = latestEntry(entries);
-      const tilesUrl = entry.urls.segments;
-      if (!tilesUrl) {
-        setError(`The snapshot ${entry.date} has no tiles URL.`);
+      manifestRef.current = entries;
+      applySnapshot(latestEntry(entries));
+    };
+
+    // T10 stub. Switch the active snapshot by manifest date. The time
+    // scrubber task replaces this hook with real UI.
+    window.__robotabilityLoadSnapshot = (date: string): void => {
+      const entry = manifestRef.current.find((candidate) => candidate.date === date);
+      if (!entry) {
+        console.warn(`No snapshot with date ${date} exists in the manifest.`);
         return;
       }
-      try {
-        registerLayer(map, 'segments', {
-          sourceId: 'segments-source',
-          source: {
-            type: 'vector',
-            url: `pmtiles://${tilesUrl}`,
-            minzoom: SEGMENTS_SOURCE_MINZOOM,
-            maxzoom: SEGMENTS_SOURCE_MAXZOOM,
-            attribution: `Robotability snapshot ${entry.date}`,
-          },
-          layer: {
-            id: 'segments',
-            type: 'line',
-            source: 'segments-source',
-            'source-layer': 'segments',
-            paint: {
-              'line-color': scoreColorExpression(),
-              'line-width': scoreWidthExpression(),
-              'line-opacity': 0.9,
-            },
-          },
-        });
-        if (entry.urls.census) {
-          registerLayer(map, 'census', {
-            sourceId: 'census-source',
-            source: {
-              type: 'vector',
-              url: `pmtiles://${entry.urls.census}`,
-              minzoom: CENSUS_SOURCE_MINZOOM,
-              maxzoom: CENSUS_SOURCE_MAXZOOM,
-            },
-            layer: {
-              id: 'census',
-              type: 'line',
-              source: 'census-source',
-              'source-layer': 'census',
-              // Off by default. A later task toggles it on.
-              layout: { visibility: 'none' },
-              paint: {
-                'line-color': 'rgba(100, 100, 100, 0.4)',
-                'line-width': 1,
-              },
-            },
-          });
-        }
-      } catch (err) {
-        console.error('Map layer registration failed.', err);
-        if (!disposed) setError('The map layers could not be added.');
+      applySnapshot(entry);
+    };
+
+    // Open the video sidebar and fly to the clicked deployment marker.
+    const handleDeploymentClick = (event: MapLayerMouseEvent): void => {
+      const feature = event.features?.[0];
+      if (!feature) return;
+      const name: unknown = feature.properties['name'];
+      const videoId: unknown = feature.properties['videoId'];
+      const startTime: unknown = feature.properties['startTime'];
+      const endTime: unknown = feature.properties['endTime'];
+      if (
+        typeof name !== 'string' ||
+        typeof videoId !== 'string' ||
+        typeof startTime !== 'number' ||
+        typeof endTime !== 'number'
+      ) {
+        return;
       }
+      if (feature.geometry.type !== 'Point') return;
+      const [lon, lat] = feature.geometry.coordinates;
+      if (disposed) return;
+      setSidebarVideo({
+        name,
+        site: { coords: [lat, lon], videoId, startTime, endTime },
+      });
+      map.flyTo({
+        center: [lon, lat],
+        zoom: 16,
+        pitch: 60,
+        duration: 2000,
+      });
+    };
+
+    // Open the breakdown panel for the clicked segment. Ignore clicks
+    // that also hit a deployment marker.
+    const handleSegmentClick = (event: MapLayerMouseEvent): void => {
+      if (map.getLayer(DEPLOYMENTS_LAYER_ID)) {
+        const markers = map.queryRenderedFeatures(event.point, {
+          layers: [DEPLOYMENTS_LAYER_ID],
+        });
+        if (markers.length > 0) return;
+      }
+      const feature = event.features?.[0];
+      if (!feature) return;
+      const id: unknown = feature.properties['id'];
+      const score: unknown = feature.properties['score'];
+      if (typeof id !== 'number' || typeof score !== 'number') return;
+      if (disposed) return;
+      setPanelSegment({ id, score });
     };
 
     map.on('load', () => {
-      void loadSnapshot();
+      // The markers register through the layer registry, so a theme
+      // switch re-adds them.
+      registerLayer(map, 'deployments', deploymentLayerEntry());
+      void loadManifest();
     });
 
-    map.on('mousemove', 'segments', showTooltip);
+    map.on('mousemove', 'segments', showSegmentTooltip);
     map.on('mouseleave', 'segments', hideTooltip);
     map.on('mouseenter', 'segments', () => {
       map.getCanvas().style.cursor = 'pointer';
@@ -383,6 +524,33 @@ export default function MapCanvas() {
     map.on('mouseleave', 'segments', () => {
       map.getCanvas().style.cursor = '';
     });
+    map.on('click', 'segments', handleSegmentClick);
+
+    map.on('mousemove', 'deployments', showDeploymentTooltip);
+    map.on('mouseleave', 'deployments', hideTooltip);
+    map.on('mouseenter', 'deployments', () => {
+      map.getCanvas().style.cursor = 'pointer';
+    });
+    map.on('mouseleave', 'deployments', () => {
+      map.getCanvas().style.cursor = '';
+    });
+    map.on('click', 'deployments', handleDeploymentClick);
+
+    // Re-apply the user visibility and the marker accent after a theme
+    // switch. The registry specs carry only the default visibility.
+    const afterThemeRestore = (restoredMap: MapLibreMap): void => {
+      const current = visibilityRef.current;
+      for (const layerKey of Object.keys(current) as ToggleableLayer[]) {
+        if (restoredMap.getLayer(layerKey)) {
+          restoredMap.setLayoutProperty(
+            layerKey,
+            'visibility',
+            current[layerKey] ? 'visible' : 'none'
+          );
+        }
+      }
+      refreshDeploymentPaint(restoredMap);
+    };
 
     // Watch the data-theme attribute on the html element. The theme
     // script and any future toggle write this attribute.
@@ -390,7 +558,7 @@ export default function MapCanvas() {
       const theme = document.documentElement.getAttribute('data-theme');
       const nextStyleUrl = styleUrlForTheme(theme);
       if (nextStyleUrl === window.__robotabilityMapStyleUrl) return;
-      switchStyle(map, nextStyleUrl);
+      switchStyle(map, nextStyleUrl, afterThemeRestore);
     });
     observer.observe(document.documentElement, {
       attributes: true,
@@ -404,9 +572,31 @@ export default function MapCanvas() {
         delete window.__robotabilityMap;
       }
       delete window.__robotabilityMapStyleUrl;
+      delete window.__robotabilityLoadSnapshot;
       tooltip.remove();
+      mapRef.current = null;
       map.remove();
     };
+  }, []);
+
+  // Toggle one layer's visibility through setLayoutProperty.
+  const handleToggle = useCallback((layerKey: ToggleableLayer): void => {
+    const nextValue = !visibilityRef.current[layerKey];
+    const next = { ...visibilityRef.current, [layerKey]: nextValue };
+    visibilityRef.current = next;
+    setVisibility(next);
+    const map = mapRef.current;
+    if (map && map.getLayer(layerKey)) {
+      map.setLayoutProperty(layerKey, 'visibility', nextValue ? 'visible' : 'none');
+    }
+  }, []);
+
+  const closeSidebar = useCallback((): void => {
+    setSidebarVideo(null);
+  }, []);
+
+  const closePanel = useCallback((): void => {
+    setPanelSegment(null);
   }, []);
 
   return (
@@ -432,7 +622,97 @@ export default function MapCanvas() {
           The map could not load. {error}
         </div>
       )}
-      <div ref={containerRef} className="absolute inset-0" />
+      {/* The maplibre container needs an explicit height. The maplibre
+          CSS forces position:relative on this element, so absolute
+          positioning classes collapse it to zero height. */}
+      <div
+        ref={containerRef}
+        data-testid="map-container"
+        style={{ position: 'relative', width: '100%', height: '100%' }}
+      />
+
+      <LayerControls
+        visibility={visibility}
+        censusAvailable={Boolean(activeEntry?.urls.census)}
+        onToggle={handleToggle}
+      />
+
+      {panelSegment !== null && activeEntry !== null && (
+        <BreakdownPanel
+          entry={activeEntry}
+          segmentId={panelSegment.id}
+          tileScore={panelSegment.score}
+          onClose={closePanel}
+        />
+      )}
+
+      {sidebarVideo !== null && (
+        <div
+          data-testid="deployment-sidebar"
+          style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            height: '100%',
+            width: '24rem',
+            maxWidth: '90vw',
+            zIndex: 160,
+            display: 'flex',
+            flexDirection: 'column',
+            backgroundColor: 'rgb(var(--color-fill))',
+            color: 'rgb(var(--color-text-base))',
+            borderRight: '1px solid rgb(var(--color-border))',
+            boxShadow: '2px 0 8px rgba(0,0,0,0.15)',
+          }}
+        >
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              padding: '0.75rem 1rem',
+              borderBottom: '1px solid rgb(var(--color-border))',
+            }}
+          >
+            <strong>{sidebarVideo.name}</strong>
+            <button
+              type="button"
+              data-testid="deployment-sidebar-close"
+              onClick={closeSidebar}
+              aria-label="Close video sidebar"
+              style={{
+                border: 'none',
+                background: 'transparent',
+                color: 'inherit',
+                font: 'inherit',
+                fontSize: '1.25rem',
+                lineHeight: 1,
+                cursor: 'pointer',
+              }}
+            >
+              ×
+            </button>
+          </div>
+          <div style={{ flex: 1, padding: '0.75rem 1rem' }}>
+            <div style={{ position: 'relative', width: '100%', paddingTop: '56.25%' }}>
+              <iframe
+                data-testid="deployment-video"
+                src={deploymentEmbedUrl(sidebarVideo.site)}
+                title={`Deployment video: ${sidebarVideo.name}`}
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                allowFullScreen
+                style={{
+                  position: 'absolute',
+                  inset: 0,
+                  width: '100%',
+                  height: '100%',
+                  border: 'none',
+                }}
+              />
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
