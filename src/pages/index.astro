@@ -1,48 +1,73 @@
 ---
+// Home page for the Robotability project.
+// It renders the personal-site design language with the T2 components.
+// The feature pills and the indicator glossary come from JSON files.
+// The page maps over the JSON data. It holds no hardcoded lists.
 import Layout from '@layouts/Default.astro';
-import RecentBlogPosts from '@components/generic/RecentBlogPosts.astro';
-import MobileSocials from '@components/home/MobileSocials.astro';
-import Card from '@components/ui/Card.astro';
 import Button from '@components/ui/Button.astro';
+import Card from '@components/ui/Card.astro';
+import DashedLink from '@components/ui/DashedLink.astro';
+import HoverReveal from '@components/ui/HoverReveal.astro';
+import SectionHeading from '@components/ui/SectionHeading.astro';
+import SubHeading from '@components/ui/SubHeading.astro';
 import LazyBoxVideo from '@components/custom/LazyBoxVideo.astro';
-import "../styles/global.css";
+import features from '../data/features.json';
+import indicators from '../data/indicators.json';
 
+// The paper DOI. Keep it exactly as published.
+const paperUrl = 'https://dl.acm.org/doi/full/10.1145/3706598.3714009';
+// The code repository URL.
+const codeUrl = 'https://github.com/FAR-LAB/robotability-nyc';
+// The NYC OpenData portal URL.
+const nycOpenDataUrl = 'https://opendata.cityofnewyork.us/';
 
-const keyFeatures = [
-  { name: 'Pedestrian Density', weight: '11.1%' },
-  { name: 'Crowd Dynamics', weight: '8.4%' },
-  { name: 'Pedestrian Flow', weight: '8.1%' },
-  { name: 'Sidewalk Quality', weight: '6.6%' },
-  { name: 'Street Width', weight: '6.2%' },
-  { name: 'Density of Street Furniture', weight: '5.9%' },
-];
+// The exact NYC OpenData Terms of Use disclaimer sentence. Keep it verbatim.
+const touDisclaimer =
+  'The City of New York can not vouch for the accuracy or completeness of data provided by this web site or application or for the usefulness or integrity of the web site or application. This site provides applications using data that has been modified for use from its original source, NYC.gov, the official web site of the City of New York.';
 
+// The team grid. Keep the images and the copy exactly as before.
 const teamMembers = [
   {
     name: 'Matt Franchi',
     role: 'Computer Science PhD Candidate',
     image: '/team/matt.jpg',
-    link: 'https://mattwfranchi.github.io'
+    link: 'https://mattwfranchi.github.io',
   },
   {
     name: 'Maria Teresa Parreira',
     role: 'Information Science PhD Candidate',
     image: '/team/teresa.png',
-    link: 'https://www.mariateresaparreira.com/'
+    link: 'https://www.mariateresaparreira.com/',
   },
   {
     name: 'Frank Bu',
     role: 'Computer Science PhD Candidate',
     image: '/team/frank.jpg',
-    link: 'https://frankbu0616.github.io/'
+    link: 'https://frankbu0616.github.io/',
   },
   {
-    name: 'Wendy Ju', 
+    name: 'Wendy Ju',
     role: 'Associate Professor',
     image: '/team/wendy.jpg',
-    link: 'https://wendyju.com'
-  }
+    link: 'https://wendyju.com',
+  },
 ];
+
+// The citation BibTeX block. Keep it verbatim.
+const citation = `@inproceedings{10.1145/3706598.3714009,
+author = {Franchi, Matthew and Parreira, Maria Teresa and Bu, Fanjun and Ju, Wendy},
+title = {The Robotability Score: Enabling Harmonious Robot Navigation on Urban Streets},
+year = {2025},
+isbn = {9798400713941},
+publisher = {Association for Computing Machinery},
+address = {New York, NY, USA},
+url = {https://doi.org/10.1145/3706598.3714009},
+doi = {10.1145/3706598.3714009},
+booktitle = {Proceedings of the 2025 CHI Conference on Human Factors in Computing Systems},
+articleno = {737},
+numpages = {17},
+series = {CHI '25}
+}`;
 ---
 
 <Layout
@@ -50,252 +75,220 @@ const teamMembers = [
   pageTitle='The Robotability Score'
   description='A novel metric for quantifying urban robot navigation suitability'
 >
-  <main class='p-6' style="">
-    <section id='about' class='flex flex-col gap-8 mt-4 max-w-6xl mx-auto'>
-      {/* Main Content */}
-      <Card>
-        <div class="p-6">
-            <h2 class='lg:text-5xl dm-serif underline'>
-              The Robotability Score
-            </h2>
-          <h2 class='lg:text-3xl mb-12 dm-serif'>
+  <main class='mx-auto w-full max-w-6xl flex-1 px-6 pb-16'>
+    <!-- Section 1: hero. Title, one-paragraph abstract, CTA buttons. -->
+    <section id='hero' class='home-section pt-12'>
+      <div class='grid items-start gap-10 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]'>
+        <div>
+          <p class='mb-4 text-sm opacity-70'>
+            @ CHI '25: ACM Conference on Human Factors in Computing Systems
+          </p>
+          <h1 class='text-4xl font-bold text-skin-base lg:text-5xl'>
+            The Robotability Score
+          </h1>
+          <p class='mt-2 text-xl text-skin-base opacity-80'>
             Enabling Harmonious Robot Navigation on Urban Streets
-          </h2>
-            <div class="flex flex-col lg:flex-row justify-between items-center mb-8">
-            
-            <div id="logos" class="flex items-center gap-4 flex-wrap justify-center lg:justify-start">
-              <img src="/cornell_logo_simple_b31b1b.png" alt="Cornell University Logo" class="h-16 lg:h-24 w-auto" />
-              <img src="/cornell_tech.png" alt="Cornell Tech Logo" class="h-16 lg:h-24 w-auto" />
-            </div>
-            <h3 class='text-xl lg:text-2xl dm-serif max-w-[450px] mb-4 lg:mb-0'>
-              @ CHI '25: ACM Conference on Human Factors in Computing Systems
-            </h3>
-            </div>
-          <div id="materials-buttons" class="poppins text-lg flex flex-row gap-8">
-            <Button href='https://dl.acm.org/doi/full/10.1145/3706598.3714009' external>
-              <span class="font-bold no-underline hover:no-underline">Read Paper &rarr;</span>
-            </Button>
-            <Button href="https://github.com/FAR-LAB/robotability-nyc" external>
-              <span class="font-bold no-underline hover:no-underline">Code Repository &rarr;</span>
-            </Button>
+          </p>
+          <p class='mt-6 max-w-prose text-skin-base'>
+            The Robotability Score (R) measures how suitable urban streets are
+            for autonomous robot navigation. It combines 24 indicators of the
+            built environment into one number, so researchers and planners can
+            compare locations and predict where robots can operate without
+            disrupting the people around them. We built and validated a
+            proof-of-concept score for all of New York City.
+          </p>
+          <div class='mt-8 flex flex-wrap items-center gap-4'>
+            <Button href='/map'>Explore the Map</Button>
+            <Button href={paperUrl} external>Read the Paper</Button>
+            <DashedLink href={codeUrl} external>Code Repository</DashedLink>
           </div>
         </div>
-       </Card>
-
-       <Card>
-        <h2 class='text-2xl lg:text-4xl mb-6 dm-serif'>
-          Project Team
-        </h2>
-        <div class="flex justify-center items-start w-full">
-          <div class="grid grid-cols-2 lg:grid-cols-4 gap-8 w-full px-4 lg:px-8">
-            {
-              teamMembers.map((member) => (
-                <a 
-                  href={member.link} 
-                  class="flex flex-col items-center group hover:transform hover:scale-105 transition-transform no-underline"
-                >
-                  <div class="w-24 lg:w-32 h-24 lg:h-32 rounded-full overflow-hidden border-2 border-white mb-2">
-                    <img 
-                      src={member.image} 
-                      alt={member.name}
-                      class="w-full h-full object-cover"
-                    />
-                  </div>
-                  <h3 class="poppins text-lg lg:text-xl text-center no-underline mb-0">{member.name}</h3>
-                  <p class="poppins text-sm lg:text-md text-gray-800 text-center max-w-[160px]">{member.role}</p>
-                </a>
-              ))
-            }
-          </div>
-        </div>
-      </Card>
-
-      <Card>
-        <h3 class='text-2xl lg:text-4xl mb-4 dm-serif'>
-          What is The Robotability Score?
-        </h3>
-        <p class='poppins mb-4'>
-          The Robotability Score (R) is a novel metric that quantifies how suitable urban environments are for autonomous robot navigation. Through expert interviews and surveys, we've developed a standardized framework for evaluating urban landscapes to reduce uncertainty in robot deployment while respecting established mobility patterns.  
-        </p>
-        <p class='poppins'>
-          Streets with high Robotability are both more navigable for robots and less disruptive to pedestrians. We've constructed a proof-of-concept Robotability Score for New York City using a wealth of open datasets from NYC OpenData, and inferred pedestrian distributions from a dataset of 8 million dashcam images taken around the city in late 2023.
-        </p>
-      </Card>
-
-   
-      <Card>
-        <Button href="map">
-          <span class="poppins text-2xl lg:text-4xl dm-serif">Interactive Map &rarr;</span>
-        </Button>
-        <p class='poppins mt-4'>
-          Explore the spatial distribution of Robotability Scores across New York City from our proof-of-concept deployment.
-        </p>
-      </Card>
-
-      <Card>
-        <h2 class='text-2xl lg:text-4xl mb-8 dm-serif'>
-          Key Features
-        </h2>
-        <div class='flex gap-4 flex-wrap mb-4'>
-          {
-            keyFeatures.map((item) => (
-              <span class='feature-pill'>
-                <span class='sanchez'>
-                  {item.name}: {item.weight}
-                </span>
-              </span>
-            ))
-          }
-          <button
-            id="toggleIndicators"
-            class="px-4 py-2 bg-[#FFE1E1] rounded hover:shadow-brutal transition-all duration-300 border-2 border-black ml-2"
-          >
-            <span class="sanchez">View Full Indicator List ↓</span>
-          </button>
-        </div>
-        <p class='mt-4 poppins'>
-          Our findings reveal that these factors collectively account for 48% of the total Robotability Score. Areas with highest R are 4.3 times more "robotable" than areas with lowest R.
-        </p>
-      </Card>
-
-      <div 
-        id="indicatorsList" 
-        class="hidden opacity-0 transform translate-y-[-10px] transition-all duration-300 ease-in-out -mt-4"
-      >
-        <Card>
-          <h3 class="text-2xl mb-6 dm-serif">Complete Indicator List</h3>
-          <p class="poppins mb-6 text-gray-700">Each indicator is paired with a sample set of weights to show how the Robotability Score might change under different indicator values.</p>
-          
-          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {[
-              ["Sidewalk width", "0 = narrow, 1 = wide"],
-              ["Pedestrian density", "0 = high density, 1 = low density"],
-              ["Density of street furniture (e.g. garbage, poles)", "0 = high density, 1 = moderate density, 2 = low density, 3 = no furniture"],
-              ["Sidewalk / Surface roughness", "0 = gravel, 1 = cobblestones, 2 = smooth asphalt"],
-              ["Surface condition", "0 = potholes, 1 = major cracks, 2 = minor cracks, 3 = smooth"],
-              ["Wireless communication infrastructure", "0 = no infrastructure, 1 = basic Wi-Fi, 2 = 5G, IoT"],
-              ["Slope gradient", "0 = high slope, 1 = no slope"],
-              ["Presence of charging stations", "0 = no charging stations nearby, 1 = multiple charging stations in proximity"],
-              ["Local attitudes towards robots", "0 = highly negative, 1 = somewhat negative, 2 = neutral, 3 = somewhat positive, 4 = highly positive"],
-              ["Curb ramp availability", "0 = no curb ramps, 1 = curb ramps at some intersections, 2 = curb ramps at most intersections, 3 = curb ramps with tactile paving"],
-              ["Weather conditions", "0 = ice, 1 = snow, 2 = puddles, 3 = leaves, 4 = clear"],
-              ["Crowd dynamics", "0 = emergency, 1 = commuting, 2 = shopping, 3 = leisure"],
-              ["Traffic management", "0 = no system, 1 = basic signage, 2 = street lights, 3 = advanced traffic control"],
-              ["Surveillance coverage (CCTV)", "0 = no coverage, 1 = low coverage, 2 = moderate coverage, 3 = high coverage"],
-              ["Zoning laws and regulation", "0 = no regulations, 1 = moderate stringency, 2 = high stringency"],
-              ["Bike lane availability", "0 = no bike lanes, 1 = bike lanes on most roads, 2 = separated bike lanes on all roads"],
-              ["Street lighting", "0 = no lighting, 1 = excellent lighting"],
-              ["Existence of shade", "0 = no shade, 1 = extensive shade"],
-              ["GPS signal strength", "0 = no signal, 1 = very strong signal"],
-              ["Pedestrian flow", "0 = very high flow, 1 = very low flow"],
-              ["Bicycle traffic", "0 = very high traffic, 1 = very low traffic"],
-              ["Vehicle traffic", "0 = very high traffic, 1 = very low traffic"],
-              ["Existence of detailed digital maps", "0 = no digital maps, 1 = highly detailed maps"],
-              ["Intersection safety", "0 = no infrastructure, 1 = basic crosswalks, 2 = zebra crossings with signals, 3 = advanced intersection management"]
-            ].map((item) => (
-              <div class="p-4 bg-[#FFE1E1] rounded hover:shadow-brutal transition-shadow">
-                <h4 class="font-bold poppins text-lg mb-2">{item[0]}</h4>
-                <p class="text-gray-700">(e.g., {item[1]})</p>
-              </div>
-            ))}
-          </div>
+        <Card class='hidden lg:block'>
+          <SubHeading level='h3'>Made at Cornell Tech</SubHeading>
+          <p class='text-sm text-skin-base'>
+            This project comes from the
+            <DashedLink href='https://far.tech.cornell.edu/' external>
+              Future Autonomous Robotics (FAR) Lab
+            </DashedLink>
+            at Cornell Tech, New York City. It was presented at CHI '25.
+          </p>
         </Card>
       </div>
-
-      <Card>
-        <div class='flex flex-col justify-between items-start gap-4'>
-          <LazyBoxVideo 
-            videoId="o52MZ1AHyjA"
-            title="Robotability Proof-of-Concept: TrashBot in NYC"
-          />
-        </div>
-      </Card>
-
-      <Card>
-        <h3 class='text-2xl lg:text-4xl mb-4 dm-serif'>
-          Paper Citation
-        </h3>
-        <p class='poppins mb-4'>
-          If you use our work in your research, please cite our paper:
-        </p>
-        <div class="bg-gray-100 rounded-md p-4 border border-gray-300 overflow-x-auto">
-          <pre class="text-sm font-mono whitespace-pre-wrap"><code>{'@inproceedings{10.1145/3706598.3714009,\n' +
-'author = {Franchi, Matthew and Parreira, Maria Teresa and Bu, Fanjun and Ju, Wendy},\n' +
-'title = {The Robotability Score: Enabling Harmonious Robot Navigation on Urban Streets},\n' +
-'year = {2025},\n' +
-'isbn = {9798400713941},\n' +
-'publisher = {Association for Computing Machinery},\n' +
-'address = {New York, NY, USA},\n' +
-'url = {https://doi.org/10.1145/3706598.3714009},\n' +
-'doi = {10.1145/3706598.3714009},\n' +
-'booktitle = {Proceedings of the 2025 CHI Conference on Human Factors in Computing Systems},\n' +
-'articleno = {737},\n' +
-'numpages = {17},\n' +
-'series = {CHI \'25}\n' +
-'}'}</code></pre>
-        </div>
-        <div class="flex mt-4">
-          <Button href='https://dl.acm.org/doi/full/10.1145/3706598.3714009' external>
-            <span class="font-bold no-underline hover:no-underline">Copy Citation</span>
-          </Button>
-        </div>
-      </Card>
-     
     </section>
-  </main>
 
-  <style>
-    :global(.brutal-btn #map) {
-      padding: 1rem 2rem !important;
-      font-size: 1.25rem !important;
-      min-width: 200px !important;
-    }
-    .shadow-brutal {
-      box-shadow: 3px 3px 0 0 rgba(0, 0, 0, 1);
-    }
-    /* Plain pill. It replaces the removed Pill component. */
-    .feature-pill {
-      display: inline-block;
-      padding: 0.25rem 0.75rem;
-      font-size: 0.875rem;
-      color: rgb(var(--color-text-base));
-      background-color: rgb(var(--color-card) / 0.5);
-      border: 1px solid rgb(var(--color-border) / 0.55);
-    }
-    #indicatorsList {
-      transition: opacity 0.3s ease-in-out,
-                  transform 0.3s ease-in-out;
-    }
-  </style>
+    <!-- Section 2: explainer. The copy is ported from the previous page. -->
+    <section id='what-is-robotability' class='home-section'>
+      <SectionHeading id='what-is-robotability-heading'>
+        What is The Robotability Score?
+      </SectionHeading>
+      <div class='max-w-prose space-y-4'>
+        <p class='text-skin-base'>
+          The Robotability Score (R) is a novel metric that quantifies how suitable
+          urban environments are for autonomous robot navigation. Through expert
+          interviews and surveys, we've developed a standardized framework for
+          evaluating urban landscapes to reduce uncertainty in robot deployment
+          while respecting established mobility patterns.
+        </p>
+        <p class='text-skin-base'>
+          Streets with high Robotability are both more navigable for robots and
+          less disruptive to pedestrians. We've constructed a proof-of-concept
+          Robotability Score for New York City using a wealth of open datasets
+          from NYC OpenData, and inferred pedestrian distributions from a dataset
+          of 8 million dashcam images taken around the city in late 2023.
+        </p>
+      </div>
+    </section>
+
+    <!-- Section 3: key features. The pills render from features.json. -->
+    <section id='key-features' class='home-section'>
+      <SectionHeading id='key-features-heading'>Key Features</SectionHeading>
+      <div class='flex flex-wrap gap-3'>
+        {
+          features.map((feature) => (
+            <span data-testid='feature-pill' class='feature-pill'>
+              {feature.name}: {feature.weight}
+            </span>
+          ))
+        }
+      </div>
+      <p class='mt-6 max-w-prose text-skin-base'>
+        Our findings reveal that these factors collectively account for 48% of
+        the total Robotability Score. Areas with highest R are 4.3 times more
+        "robotable" than areas with lowest R.
+      </p>
+    </section>
+
+    <!-- Section 4: indicator glossary. The entries render from indicators.json.
+         Each term is a HoverReveal anchor. The satellite card shows the scale. -->
+    <section id='indicators' class='home-section'>
+      <SectionHeading id='indicators-heading'>
+        Complete Indicator List
+      </SectionHeading>
+      <p class='max-w-prose text-skin-base'>
+        The score draws on 24 indicators. Hover over any term to see how we
+        measure it. Each indicator is paired with a sample set of weights to
+        show how the Robotability Score might change under different indicator
+        values.
+      </p>
+      <ul
+        data-testid='indicator-glossary'
+        class='mt-6 grid grid-cols-1 gap-x-10 gap-y-3 md:grid-cols-2'
+      >
+        {
+          indicators.map((indicator, index) => (
+            <li data-testid='indicator-entry' class='indicator-entry'>
+              <HoverReveal
+                id={`indicator-${index}`}
+                variant='text'
+                text={indicator.description}
+                label={`${indicator.term} scale`}
+                size='md'
+                placement='top-right'
+                curve='natural'
+                distance='short'
+              >
+                {indicator.term}
+              </HoverReveal>
+            </li>
+          ))
+        }
+      </ul>
+    </section>
+
+    <!-- Section 5: video. The LazyBoxVideo id and params stay untouched. -->
+    <section id='video' class='home-section'>
+      <SectionHeading id='video-heading'>Proof-of-Concept Video</SectionHeading>
+      <Card>
+        <LazyBoxVideo
+          videoId='o52MZ1AHyjA'
+          title='Robotability Proof-of-Concept: TrashBot in NYC'
+        />
+      </Card>
+    </section>
+
+    <!-- Section 6: team grid. The images and copy stay exactly as before. -->
+    <section id='team' class='home-section'>
+      <SectionHeading id='team-heading'>Project Team</SectionHeading>
+      <div class='grid grid-cols-2 gap-8 lg:grid-cols-4'>
+        {
+          teamMembers.map((member) => (
+            <a
+              href={member.link}
+              class='group flex flex-col items-center no-underline'
+            >
+              <div class='mb-3 h-24 w-24 overflow-hidden rounded-full border border-skin-line lg:h-32 lg:w-32'>
+                <img
+                  src={member.image}
+                  alt={member.name}
+                  class='h-full w-full object-cover'
+                />
+              </div>
+              <h3 class='text-center text-lg text-skin-base'>{member.name}</h3>
+              <p class='text-center text-sm text-skin-base opacity-70'>
+                {member.role}
+              </p>
+            </a>
+          ))
+        }
+      </div>
+    </section>
+
+    <!-- Section 7: citation. The BibTeX block stays verbatim. -->
+    <section id='citation' class='home-section'>
+      <SectionHeading id='citation-heading'>Paper Citation</SectionHeading>
+      <p class='max-w-prose text-skin-base'>
+        If you use our work in your research, please cite our paper:
+      </p>
+      <Card class='mt-4 overflow-x-auto'>
+        <pre class='whitespace-pre-wrap font-mono text-sm'><code>{citation}</code></pre>
+      </Card>
+      <p class='mt-4'>
+        <DashedLink href={paperUrl} external>
+          View the paper on the ACM Digital Library
+        </DashedLink>
+      </p>
+    </section>
+
+    <!-- Section 8: data attribution footer.
+         It carries the NYC OpenData attribution and the ToU disclaimer. -->
+    <footer data-testid='home-footer' class='home-section border-t border-skin-line pt-8'>
+      <SectionHeading id='data-attribution-heading' level='h2'>
+        Data Attribution
+      </SectionHeading>
+      <div class='max-w-prose space-y-3 text-sm text-skin-base'>
+        <p>
+          The Robotability Score for New York City is computed in part from
+          public datasets published on
+          <DashedLink href={nycOpenDataUrl} external>NYC OpenData</DashedLink>.
+          This project is not affiliated with or endorsed by the City of New
+          York.
+        </p>
+        <p>{touDisclaimer}</p>
+      </div>
+    </footer>
+  </main>
 </Layout>
 
-<script is:inline>
-  document.addEventListener('DOMContentLoaded', () => {
-    const button = document.getElementById('toggleIndicators');
-    const list = document.getElementById('indicatorsList');
-    
-    if (button && list) {
-      button.addEventListener('click', () => {
-        const isHidden = list.classList.contains('hidden');
-        
-        if (isHidden) {
-          // Show the list
-          list.classList.remove('hidden');
-          void list.offsetWidth;
-          list.classList.remove('opacity-0', 'translate-y-[-10px]');
-          // Update to "Hide" immediately when showing
-          button.querySelector('span').textContent = 'Hide Indicator List ↑';
-        } else {
-          // Hide the list
-          list.classList.add('opacity-0', 'translate-y-[-10px]');
-          // Update to "View" immediately when hiding
-          button.querySelector('span').textContent = 'View Full Indicator List ↓';
-          setTimeout(() => {
-            list.classList.add('hidden');
-          }, 300);
-        }
-      });
-    }
-  });
-</script>
+<style>
+  /* Space between the home sections. */
+  .home-section {
+    margin-top: 4rem;
+  }
 
+  /* Feature pill. Sharp corners. Token-based colors. */
+  .feature-pill {
+    display: inline-block;
+    padding: 0.25rem 0.75rem;
+    font-size: 0.875rem;
+    color: rgb(var(--color-text-base));
+    background-color: rgb(var(--color-card) / 0.5);
+    border: 1px solid rgb(var(--color-border) / 0.55);
+    border-radius: 0;
+  }
+
+  /* Indicator entry. Give the anchor a clear hit area. */
+  .indicator-entry {
+    padding: 0.25rem 0;
+    line-height: 1.6;
+  }
+</style>

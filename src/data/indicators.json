@@ -1,0 +1,98 @@
+[
+  {
+    "term": "Sidewalk width",
+    "description": "0 = narrow, 1 = wide"
+  },
+  {
+    "term": "Pedestrian density",
+    "description": "0 = high density, 1 = low density"
+  },
+  {
+    "term": "Density of street furniture (e.g. garbage, poles)",
+    "description": "0 = high density, 1 = moderate density, 2 = low density, 3 = no furniture"
+  },
+  {
+    "term": "Sidewalk / Surface roughness",
+    "description": "0 = gravel, 1 = cobblestones, 2 = smooth asphalt"
+  },
+  {
+    "term": "Surface condition",
+    "description": "0 = potholes, 1 = major cracks, 2 = minor cracks, 3 = smooth"
+  },
+  {
+    "term": "Wireless communication infrastructure",
+    "description": "0 = no infrastructure, 1 = basic Wi-Fi, 2 = 5G, IoT"
+  },
+  {
+    "term": "Slope gradient",
+    "description": "0 = high slope, 1 = no slope"
+  },
+  {
+    "term": "Presence of charging stations",
+    "description": "0 = no charging stations nearby, 1 = multiple charging stations in proximity"
+  },
+  {
+    "term": "Local attitudes towards robots",
+    "description": "0 = highly negative, 1 = somewhat negative, 2 = neutral, 3 = somewhat positive, 4 = highly positive"
+  },
+  {
+    "term": "Curb ramp availability",
+    "description": "0 = no curb ramps, 1 = curb ramps at some intersections, 2 = curb ramps at most intersections, 3 = curb ramps with tactile paving"
+  },
+  {
+    "term": "Weather conditions",
+    "description": "0 = ice, 1 = snow, 2 = puddles, 3 = leaves, 4 = clear"
+  },
+  {
+    "term": "Crowd dynamics",
+    "description": "0 = emergency, 1 = commuting, 2 = shopping, 3 = leisure"
+  },
+  {
+    "term": "Traffic management",
+    "description": "0 = no system, 1 = basic signage, 2 = street lights, 3 = advanced traffic control"
+  },
+  {
+    "term": "Surveillance coverage (CCTV)",
+    "description": "0 = no coverage, 1 = low coverage, 2 = moderate coverage, 3 = high coverage"
+  },
+  {
+    "term": "Zoning laws and regulation",
+    "description": "0 = no regulations, 1 = moderate stringency, 2 = high stringency"
+  },
+  {
+    "term": "Bike lane availability",
+    "description": "0 = no bike lanes, 1 = bike lanes on most roads, 2 = separated bike lanes on all roads"
+  },
+  {
+    "term": "Street lighting",
+    "description": "0 = no lighting, 1 = excellent lighting"
+  },
+  {
+    "term": "Existence of shade",
+    "description": "0 = no shade, 1 = extensive shade"
+  },
+  {
+    "term": "GPS signal strength",
+    "description": "0 = no signal, 1 = very strong signal"
+  },
+  {
+    "term": "Pedestrian flow",
+    "description": "0 = very high flow, 1 = very low flow"
+  },
+  {
+    "term": "Bicycle traffic",
+    "description": "0 = very high traffic, 1 = very low traffic"
+  },
+  {
+    "term": "Vehicle traffic",
+    "description": "0 = very high traffic, 1 = very low traffic"
+  },
+  {
+    "term": "Existence of detailed digital maps",
+    "description": "0 = no digital maps, 1 = highly detailed maps"
+  },
+  {
+    "term": "Intersection safety",
+    "description": "0 = no infrastructure, 1 = basic crosswalks, 2 = zebra crossings with signals, 3 = advanced intersection management"
+  }
+]
