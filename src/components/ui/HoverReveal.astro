@@ -123,6 +123,18 @@ const linkProps = href
 ><span class="hover-reveal__word" tabindex="0" aria-describedby={id ? `${id}-card` : undefined}><slot /></span><svg class="hover-reveal__tether" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true"><path d={tetherPath} vector-effect="non-scaling-stroke" pathLength="100" /></svg><CardTag class:list={["hover-reveal__card", `hover-reveal__card--${variant}`]} id={id ? `${id}-card` : undefined} role={href ? undefined : "img"} aria-label={label} {...linkProps}>{variant === "image" && src && <img src={src} alt={alt} loading="lazy" draggable="false" />}{variant === "logo" && src && <img src={src} alt={alt} loading="lazy" draggable="false" class="is-logo" />}{variant === "text" && text && <span class="hover-reveal__text">{text}</span>}</CardTag></span>
 
 <script>
+  // The touch script reads resolve() through a window hook. The
+  // augmentation gives the hook a real type, so neither use site needs
+  // a cast. The export marks this script as a module, which the global
+  // augmentation requires.
+  export {};
+
+  declare global {
+    interface Window {
+      __resolveReveal?: (wrapper: HTMLElement) => void;
+    }
+  }
+
   // —————————————————————————————————————————————————————————————————
   // 1. Viewport-aware placement (all devices, runs on load + resize)
   //
@@ -449,7 +461,7 @@ const linkProps = href
     }
 
     // Expose resolve() globally so the touch script can call it too.
-    (window as any).__resolveReveal = resolve;
+    window.__resolveReveal = resolve;
 
     // On desktop, resolve placement just before the card appears (mouseenter).
     wrappers.forEach((wrapper) => {
@@ -497,7 +509,7 @@ const linkProps = href
         openWrapper.classList.remove("is-tapped");
       }
       // Resolve placement at the moment of opening, based on current scroll.
-      const resolveFn = (window as any).__resolveReveal;
+      const resolveFn = window.__resolveReveal;
       if (resolveFn) resolveFn(wrapper);
       openWrapper = wrapper;
       scrollAnchorY = window.scrollY;

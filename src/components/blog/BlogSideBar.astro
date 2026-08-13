@@ -1,6 +1,14 @@
 ---
+// One heading from the rendered markdown. The shape matches Astro's
+// MarkdownHeading type: a depth, a slug, and the heading text.
+export interface Heading {
+  depth: number;
+  slug: string;
+  text: string;
+}
+
 interface Props {
-  headings: Array<Object>;
+  headings: Heading[];
 }
 
 const { headings } = Astro.props;
@@ -10,7 +18,7 @@ const { headings } = Astro.props;
   <nav class='hidden lg:block sticky top-6'>
     <ul>
       {
-        headings.map((heading: any) => (
+        headings.map((heading: Heading) => (
           <li class='py-1'>
             {[...Array(heading.depth - 1)].map((_, _i) => (
               <span class='inline-block w-4' />
