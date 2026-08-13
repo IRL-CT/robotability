@@ -22,7 +22,8 @@ import {
   refreshDeploymentPaint,
 } from './DeploymentMarkers';
 import LayerControls, { type LayerVisibility, type ToggleableLayer } from './LayerControls';
-import { type RegisteredLayer, type SnapshotEntry } from './types';
+import TimePanel from './TimePanel';
+import { type RegisteredLayer, type SnapshotEntry, type SnapshotFeatureStatsEntry } from './types';
 
 // Test hooks. Playwright reads the map instance and the active style URL
 // from the window object to assert the map state. The double-underscore
@@ -31,8 +32,8 @@ declare global {
   interface Window {
     __robotabilityMap?: MapLibreMap;
     __robotabilityMapStyleUrl?: string;
-    // T10 stub. Switches the active snapshot by manifest date. The time
-    // scrubber task replaces this hook with real UI.
+    // Switches the active snapshot by manifest date. The TimePanel
+    // scrubber uses the same path. Playwright uses the hook directly.
     __robotabilityLoadSnapshot?: (date: string) => void;
   }
 }
@@ -102,6 +103,24 @@ function parseManifest(raw: unknown): SnapshotEntry[] {
     if (typeof tilesUrl !== 'string') continue;
     const censusUrl = urls['census'];
     const parquetUrl = urls['parquet'] ?? urls['features'];
+    // The per-feature normalization stats. The live refresh needs them.
+    // Entries with missing or non-numeric bounds are dropped.
+    const rawStats = item['feature_stats'];
+    let featureStats: Record<string, SnapshotFeatureStatsEntry> | undefined;
+    if (isRecord(rawStats)) {
+      featureStats = {};
+      for (const [featureName, statValue] of Object.entries(rawStats)) {
+        if (
+          isRecord(statValue) &&
+          typeof statValue['min'] === 'number' &&
+          typeof statValue['max'] === 'number' &&
+          Number.isFinite(statValue['min']) &&
+          Number.isFinite(statValue['max'])
+        ) {
+          featureStats[featureName] = { min: statValue['min'], max: statValue['max'] };
+        }
+      }
+    }
     entries.push({
       date,
       tag: typeof item['tag'] === 'string' ? item['tag'] : undefined,
@@ -114,6 +133,7 @@ function parseManifest(raw: unknown): SnapshotEntry[] {
         census: typeof censusUrl === 'string' ? censusUrl : undefined,
         parquet: typeof parquetUrl === 'string' ? parquetUrl : undefined,
       },
+      feature_stats: featureStats,
     });
   }
   if (entries.length === 0) {
@@ -179,12 +199,77 @@ function applyRegisteredLayers(map: MapLibreMap): void {
   }
 }
 
+// Maps with a pending layer flush. One flush listener per map is enough.
+// The flush applies every registry entry, so extra listeners are waste.
+const pendingLayerFlush = new WeakSet<MapLibreMap>();
+
+// Listeners that run after a successful flush. The map component uses
+// them to re-apply the user layer visibility: the registry specs carry
+// only the default visibility.
+type LayerFlushListener = (map: MapLibreMap) => void;
+const layerFlushListeners = new WeakMap<MapLibreMap, Set<LayerFlushListener>>();
+
+// Subscribe to post-flush notifications. Returns the unsubscribe
+// function for the effect cleanup.
+function addLayerFlushListener(map: MapLibreMap, listener: LayerFlushListener): () => void {
+  let listeners = layerFlushListeners.get(map);
+  if (!listeners) {
+    listeners = new Set();
+    layerFlushListeners.set(map, listeners);
+  }
+  listeners.add(listener);
+  return () => {
+    listeners?.delete(listener);
+  };
+}
+
+// Queue a layer flush for the next styledata or idle event. The flush
+// retries while the style is still loading. It waits on styledata AND
+// idle: the style can finish loading between two styledata events, so a
+// styledata-only wait strands the queue. applyRegisteredLayers skips
+// entries that already exist, so a double flush is harmless.
+function queueLayerFlush(map: MapLibreMap): void {
+  if (pendingLayerFlush.has(map)) return;
+  pendingLayerFlush.add(map);
+  const flush = (): void => {
+    if (!map.isStyleLoaded()) {
+      map.once('styledata', flush);
+      map.once('idle', flush);
+      return;
+    }
+    pendingLayerFlush.delete(map);
+    try {
+      applyRegisteredLayers(map);
+    } catch (error) {
+      console.error('Failed to flush the pending layer registrations.', error);
+      return;
+    }
+    const listeners = layerFlushListeners.get(map);
+    if (listeners) {
+      for (const listener of listeners) {
+        try {
+          listener(map);
+        } catch (error) {
+          console.error('A layer flush listener failed.', error);
+        }
+      }
+    }
+  };
+  map.once('styledata', flush);
+  map.once('idle', flush);
+}
+
 // Register a layer and add it to the map when the style is ready.
+// The registration is never dropped. When the style is mid-load (for
+// example while a TileJSON request is in flight), the flush queue
+// applies it on the next styledata or idle event.
 function registerLayer(map: MapLibreMap, key: string, entry: RegisteredLayer): void {
   layerRegistry.set(key, entry);
   if (map.isStyleLoaded()) {
     applyRegisteredLayers(map);
+    return;
   }
+  queueLayerFlush(map);
 }
 
 // Remove one registered layer and its source from the map and registry.
@@ -264,6 +349,9 @@ export default function MapCanvas() {
   const visibilityRef = useRef<LayerVisibility>(DEFAULT_VISIBILITY);
   // The parsed manifest entries. The snapshot-switch hook reads them.
   const manifestRef = useRef<SnapshotEntry[]>([]);
+  // The snapshot apply function escapes the map effect through this ref.
+  // The TimePanel and the window hook call it from component scope.
+  const applySnapshotRef = useRef<((entry: SnapshotEntry) => void) | null>(null);
 
   // The error message for the visible banner. null means no error.
   const [error, setError] = useState<string | null>(null);
@@ -271,6 +359,27 @@ export default function MapCanvas() {
   const [activeEntry, setActiveEntry] = useState<SnapshotEntry | null>(null);
   const [panelSegment, setPanelSegment] = useState<PanelSegment | null>(null);
   const [sidebarVideo, setSidebarVideo] = useState<SidebarVideo | null>(null);
+  // The manifest entries sorted by date ascending. The TimePanel maps
+  // them onto the scrubber.
+  const [entries, setEntries] = useState<SnapshotEntry[]>([]);
+  // The map instance as state. The TimePanel mounts only after the map
+  // exists, so its effects always see a live map.
+  const [mapInstance, setMapInstance] = useState<MapLibreMap | null>(null);
+
+  // Switch the active snapshot by manifest date. The TimePanel scrubber
+  // and the window hook share this path.
+  const loadSnapshotByDate = useCallback((date: string): void => {
+    const entry = manifestRef.current.find((candidate) => candidate.date === date);
+    if (!entry) {
+      console.warn(`No snapshot with date ${date} exists in the manifest.`);
+      return;
+    }
+    applySnapshotRef.current?.(entry);
+  }, []);
+
+  const getMapInstance = useCallback((): MapLibreMap | null => {
+    return mapRef.current;
+  }, []);
 
   useEffect(() => {
     const container = containerRef.current;
@@ -291,6 +400,7 @@ export default function MapCanvas() {
       bearing: INITIAL_BEARING,
     });
     mapRef.current = map;
+    setMapInstance(map);
 
     // Expose the map for the Playwright spec. See the declare-global
     // comment at the top of this file.
@@ -446,19 +556,19 @@ export default function MapCanvas() {
       }
       if (disposed) return;
       manifestRef.current = entries;
+      // The scrubber maps the entries sorted by date ascending.
+      setEntries(
+        [...entries].sort((left, right) =>
+          left.date < right.date ? -1 : left.date > right.date ? 1 : 0,
+        ),
+      );
       applySnapshot(latestEntry(entries));
     };
 
-    // T10 stub. Switch the active snapshot by manifest date. The time
-    // scrubber task replaces this hook with real UI.
-    window.__robotabilityLoadSnapshot = (date: string): void => {
-      const entry = manifestRef.current.find((candidate) => candidate.date === date);
-      if (!entry) {
-        console.warn(`No snapshot with date ${date} exists in the manifest.`);
-        return;
-      }
-      applySnapshot(entry);
-    };
+    // Expose the snapshot apply function to the component scope. The
+    // TimePanel scrubber and the window hook share the same path.
+    applySnapshotRef.current = applySnapshot;
+    window.__robotabilityLoadSnapshot = loadSnapshotByDate;
 
     // Open the video sidebar and fly to the clicked deployment marker.
     const handleDeploymentClick = (event: MapLayerMouseEvent): void => {
@@ -565,9 +675,16 @@ export default function MapCanvas() {
       attributeFilter: ['data-theme'],
     });
 
+    // A flush adds layers with the registry default visibility. The
+    // listener re-applies the user visibility, exactly like the theme
+    // switch restore does.
+    const unsubscribeFlush = addLayerFlushListener(map, afterThemeRestore);
+
     return () => {
       disposed = true;
       observer.disconnect();
+      unsubscribeFlush();
+      applySnapshotRef.current = null;
       if (window.__robotabilityMap === map) {
         delete window.__robotabilityMap;
       }
@@ -636,6 +753,15 @@ export default function MapCanvas() {
         censusAvailable={Boolean(activeEntry?.urls.census)}
         onToggle={handleToggle}
       />
+
+      {mapInstance !== null && (
+        <TimePanel
+          entries={entries}
+          activeEntry={activeEntry}
+          onLoadSnapshot={loadSnapshotByDate}
+          getMap={getMapInstance}
+        />
+      )}
 
       {panelSegment !== null && activeEntry !== null && (
         <BreakdownPanel

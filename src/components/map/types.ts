@@ -12,11 +12,22 @@ export type SnapshotUrls = {
   readonly features?: string;
 };
 
+// One normalization window for one feature. The shape matches
+// feature_stats in pipeline/contract/cluster_contract.md.
+export type SnapshotFeatureStatsEntry = {
+  readonly min: number;
+  readonly max: number;
+};
+
 export type SnapshotEntry = {
   readonly date: string;
   readonly tag?: string;
   readonly feature_vectors?: boolean;
   readonly urls: SnapshotUrls;
+  // Per-feature min/max stats from the snapshot manifest. Present only
+  // on snapshots built by the cluster pipeline. The live refresh needs
+  // them for normalization and refuses to run without them.
+  readonly feature_stats?: Record<string, SnapshotFeatureStatsEntry>;
 };
 
 // The exact fallback sentence for snapshots without feature vectors.
