@@ -125,14 +125,13 @@ function liveScoreRamp(): ExpressionSpecification {
 }
 
 // The overlay line width. It tracks the segments width with a small
-// bump so the overlay covers the snapshot line beneath it.
+// bump so the overlay covers the snapshot line beneath it. The bump is
+// folded into every stop. MapLibre rejects a zoom interpolation nested
+// inside arithmetic, so the width must stay one top-level interpolate.
+// The stop values are the segment stops plus the 0.75 bump.
 function overlayWidthExpression(): ExpressionSpecification {
   const interpolation: InterpolationSpecification = ['exponential', 1.4];
-  return [
-    '+',
-    ['interpolate', interpolation, ['zoom'], 9, 0.6, 12, 1.5, 14, 3, 18, 8],
-    0.75,
-  ];
+  return ['interpolate', interpolation, ['zoom'], 9, 1.35, 12, 2.25, 14, 3.75, 18, 8.75];
 }
 
 // Run fn once the style is loaded. Retry on styledata while it loads.

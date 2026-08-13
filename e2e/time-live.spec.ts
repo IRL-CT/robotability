@@ -622,6 +622,149 @@ test.describe('time scrubber, diff mode, live refresh', () => {
     await expect(banner).toHaveText(DISABLED_SENTENCE);
   });
 
+  test('(h) diff mode paints the overlay layer with no console errors', async ({
+    page,
+  }) => {
+    // Collect every console error and uncaught exception. The invalid
+    // width expression made addLayer throw, and whenStyleReady logged
+    // each failure with console.error.
+    const consoleErrors: string[] = [];
+    page.on('console', (message) => {
+      if (message.type() === 'error') consoleErrors.push(message.text());
+    });
+    page.on('pageerror', (error) => consoleErrors.push(error.message));
+
+    await page.goto('/map');
+    await waitForMapReady(page);
+
+    // Put the fixture grid in view so the overlay has geometry.
+    await jumpTo(page, FIXTURE_GRID_CENTER, 16);
+    await waitForRenderedSegments(page);
+
+    await page.click('[data-testid="diff-toggle"]');
+    await page.selectOption('[data-testid="diff-a"]', DATE_A);
+    await page.selectOption('[data-testid="diff-b"]', DATE_B);
+
+    // Wait for the diff hook to fill.
+    await page.waitForFunction(
+      () => {
+        const w = window as ExposedWindow;
+        const diff = w.__robotabilityDiffState;
+        return !!diff && diff.active && diff.deltas.length > 0;
+      },
+      undefined,
+      { timeout: 20_000 }
+    );
+
+    // The overlay layer must exist on the map. Before the width
+    // expression fix, addLayer threw and the layer never appeared.
+    await page.waitForFunction(
+      () => {
+        const w = window as ExposedWindow;
+        const map = w.__robotabilityMap;
+        return !!map && !!map.getLayer('diff-overlay');
+      },
+      undefined,
+      { timeout: 20_000 }
+    );
+
+    // The overlay must carry the rendered fixture segments.
+    await page.waitForFunction(
+      () => {
+        const w = window as ExposedWindow;
+        const map = w.__robotabilityMap;
+        if (!map) return false;
+        return map.queryRenderedFeatures({ layers: ['diff-overlay'] }).length > 0;
+      },
+      undefined,
+      { timeout: 20_000 }
+    );
+
+    // No console error may fire during the whole diff activation.
+    expect(consoleErrors).toEqual([]);
+  });
+
+  test('(i) live refresh paints the overlay layer with no console errors', async ({
+    page,
+  }) => {
+    // Collect every console error and uncaught exception. The invalid
+    // width expression made addLayer throw on the live overlay too.
+    const consoleErrors: string[] = [];
+    page.on('console', (message) => {
+      if (message.type() === 'error') consoleErrors.push(message.text());
+    });
+    page.on('pageerror', (error) => consoleErrors.push(error.message));
+
+    // The mocked SODA and GBFS routes match test (e).
+    await page.route(/data\.cityofnewyork\.us/, async (route) => {
+      const url = new URL(route.request().url());
+      const file = url.pathname.split('/').pop() ?? '';
+      const dataset = file.split('.')[0];
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify(cannedRows(dataset)),
+      });
+    });
+    await page.route(/gbfs\.citibikenyc\.com/, async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify(cannedGbfs()),
+      });
+    });
+
+    await page.goto('/map');
+    await waitForMapReady(page);
+
+    // Scrub to fixture-b. It carries feature_stats.
+    await scrubToDate(page, DATE_B);
+
+    // Keep the viewport inside the live area cap and over the grid.
+    await jumpTo(page, FIXTURE_GRID_CENTER, 16);
+    await waitForRenderedSegments(page);
+
+    await page.click('[data-testid="live-refresh-button"]');
+
+    // Wait for the live hook to report scored results.
+    await page.waitForFunction(
+      () => {
+        const w = window as ExposedWindow;
+        const live = w.__robotabilityLiveState;
+        return !!live && live.active && live.results.length > 0;
+      },
+      undefined,
+      { timeout: 30_000 }
+    );
+
+    // The overlay layer must exist on the map. Before the width
+    // expression fix, addLayer threw and the layer never appeared.
+    await page.waitForFunction(
+      () => {
+        const w = window as ExposedWindow;
+        const map = w.__robotabilityMap;
+        return !!map && !!map.getLayer('live-overlay');
+      },
+      undefined,
+      { timeout: 20_000 }
+    );
+
+    // The overlay must carry the scored segments.
+    await page.waitForFunction(
+      () => {
+        const w = window as ExposedWindow;
+        const map = w.__robotabilityMap;
+        if (!map) return false;
+        return map.queryRenderedFeatures({ layers: ['live-overlay'] }).length > 0;
+      },
+      undefined,
+      { timeout: 20_000 }
+    );
+
+    // No console error may fire during the whole live refresh.
+    expect(consoleErrors).toEqual([]);
+  });
+
   test('(g) a large viewport shows the zoom sentence and sends nothing', async ({
     page,
   }) => {

@@ -311,7 +311,16 @@ async function clickAt(
 
 // Click one rendered segment and wait for the breakdown panel.
 async function clickFirstSegment(page: import('@playwright/test').Page): Promise<SegmentTarget> {
-  const target = await page.evaluate(pickSegmentTarget);
+  // The pick can land in a short styledata window: isStyleLoaded is
+  // false for a moment while the features are already rendered. Retry
+  // the pick until the window closes, like the other waits in this spec.
+  let target: SegmentTarget | null = null;
+  const deadline = Date.now() + 10_000;
+  while (Date.now() < deadline) {
+    target = await page.evaluate(pickSegmentTarget);
+    if (target) break;
+    await page.waitForTimeout(250);
+  }
   expect(target).not.toBeNull();
   if (!target) throw new Error('No rendered segment was found.');
   await clickAt(page, target.x, target.y);
