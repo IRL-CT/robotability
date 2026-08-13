@@ -27,10 +27,10 @@ const NAV_ITEMS = [
   { name: 'Code', url: 'https://github.com/FAR-LAB/robotability-nyc' },
 ];
 
-// NYC OpenData Terms of Use disclaimer. The methodology page must print
-// this sentence verbatim.
+// NYC OpenData Terms of Use disclaimer for third-party applications.
+// The methodology page must print this sentence verbatim.
 const TOU_DISCLAIMER =
-  'The City does not warranty the completeness, accuracy, content, or fitness for any particular purpose or use of any public data set made available on NYC Open Data, nor are any such warranties to be implied or inferred with respect to the public data sets furnished therein.';
+  'The City of New York can not vouch for the accuracy or completeness of data provided by this web site or application or for the usefulness or integrity of the web site or application. This site provides applications using data that has been modified for use from its original source, NYC.gov, the official web site of the City of New York.';
 
 // Read the weights data. Return null when the file does not exist yet.
 function loadWeights(): WeightEntry[] | null {
