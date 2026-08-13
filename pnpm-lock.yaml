@@ -4,13 +4,6 @@ settings:
   autoInstallPeers: true
   excludeLinksFromLockfile: false
 
-overrides:
-  '@luma.gl/core': 9.1.2
-  '@luma.gl/shadertools': 9.1.2
-  '@luma.gl/constants': 9.1.2
-  '@luma.gl/engine': 9.1.2
-  '@luma.gl/webgl': 9.1.2
-
 dependencies:
   '@astrojs/react':
     specifier: ^4.2.0
@@ -21,30 +14,6 @@ dependencies:
   '@astrojs/sitemap':
     specifier: ^3.2.1
     version: 3.2.1
-  '@deck.gl/core':
-    specifier: ^9.1.2
-    version: 9.1.2
-  '@deck.gl/layers':
-    specifier: ^9.1.2
-    version: 9.1.2(@deck.gl/core@9.1.2)(@loaders.gl/core@4.3.4)(@luma.gl/core@9.1.2)(@luma.gl/engine@9.1.2)
-  '@deck.gl/mapbox':
-    specifier: ^9.1.2
-    version: 9.1.2(@deck.gl/core@9.1.2)(@luma.gl/core@9.1.2)
-  '@luma.gl/constants':
-    specifier: 9.1.2
-    version: 9.1.2
-  '@luma.gl/core':
-    specifier: 9.1.2
-    version: 9.1.2
-  '@luma.gl/engine':
-    specifier: 9.1.2
-    version: 9.1.2(@luma.gl/core@9.1.2)(@luma.gl/shadertools@9.1.2)
-  '@luma.gl/shadertools':
-    specifier: 9.1.2
-    version: 9.1.2(@luma.gl/core@9.1.2)
-  '@luma.gl/webgl':
-    specifier: 9.1.2
-    version: 9.1.2(@luma.gl/core@9.1.2)
   '@radix-ui/react-dialog':
     specifier: ^1.1.6
     version: 1.1.6(@types/react-dom@19.0.4)(@types/react@19.0.10)(react-dom@19.0.0)(react@19.0.0)
@@ -419,62 +388,6 @@ packages:
     dependencies:
       '@babel/helper-string-parser': 7.27.1
       '@babel/helper-validator-identifier': 7.28.5
-    dev: false
-
-  /@deck.gl/core@9.1.2:
-    resolution: {integrity: sha512-GTVgOEgMYnK+JJ02G0BmaydudkiJGfKSJeLe+Tfo2QWROPEAKMepqJ+dsCtW6YNsRKUBfpBo+/L21MbPonhSdA==}
-    dependencies:
-      '@loaders.gl/core': 4.3.4
-      '@loaders.gl/images': 4.3.4(@loaders.gl/core@4.3.4)
-      '@luma.gl/constants': 9.1.2
-      '@luma.gl/core': 9.1.2
-      '@luma.gl/engine': 9.1.2(@luma.gl/core@9.1.2)(@luma.gl/shadertools@9.1.2)
-      '@luma.gl/shadertools': 9.1.2(@luma.gl/core@9.1.2)
-      '@luma.gl/webgl': 9.1.2(@luma.gl/core@9.1.2)
-      '@math.gl/core': 4.1.0
-      '@math.gl/sun': 4.1.0
-      '@math.gl/types': 4.1.0
-      '@math.gl/web-mercator': 4.1.0
-      '@probe.gl/env': 4.1.0
-      '@probe.gl/log': 4.1.0
-      '@probe.gl/stats': 4.1.0
-      '@types/offscreencanvas': 2019.7.3
-      gl-matrix: 3.4.4
-      mjolnir.js: 3.0.0
-    dev: false
-
-  /@deck.gl/layers@9.1.2(@deck.gl/core@9.1.2)(@loaders.gl/core@4.3.4)(@luma.gl/core@9.1.2)(@luma.gl/engine@9.1.2):
-    resolution: {integrity: sha512-uDkwBifDbwJfG9VJQzfBRSoyj9v/zFvywFU2nWuFAuo4vu6gxOQm+2oINqOGPh/klgWa7p8dc4mPn5ZjRaDjKg==}
-    peerDependencies:
-      '@deck.gl/core': ^9.1.0
-      '@loaders.gl/core': ^4.2.0
-      '@luma.gl/core': ^9.1.0
-      '@luma.gl/engine': ^9.1.0
-    dependencies:
-      '@deck.gl/core': 9.1.2
-      '@loaders.gl/core': 4.3.4
-      '@loaders.gl/images': 4.3.4(@loaders.gl/core@4.3.4)
-      '@loaders.gl/schema': 4.3.4(@loaders.gl/core@4.3.4)
-      '@luma.gl/core': 9.1.2
-      '@luma.gl/engine': 9.1.2(@luma.gl/core@9.1.2)(@luma.gl/shadertools@9.1.2)
-      '@luma.gl/shadertools': 9.1.2(@luma.gl/core@9.1.2)
-      '@mapbox/tiny-sdf': 2.0.7
-      '@math.gl/core': 4.1.0
-      '@math.gl/polygon': 4.1.0
-      '@math.gl/web-mercator': 4.1.0
-      earcut: 2.2.4
-    dev: false
-
-  /@deck.gl/mapbox@9.1.2(@deck.gl/core@9.1.2)(@luma.gl/core@9.1.2):
-    resolution: {integrity: sha512-qoSDrOpTMhe/XJTXaAQTvTu3mqN7MvdA6PCTP9zDjdZxPtMr0cP5pZ+inPEkWAJ7TI0LPpxLCDvh7ZcXS4uj/A==}
-    peerDependencies:
-      '@deck.gl/core': ^9.1.0
-      '@luma.gl/core': ^9.1.0
-    dependencies:
-      '@deck.gl/core': 9.1.2
-      '@luma.gl/constants': 9.1.2
-      '@luma.gl/core': 9.1.2
-      '@math.gl/web-mercator': 4.1.0
     dev: false
 
   /@emnapi/runtime@1.7.0:
@@ -1202,103 +1115,6 @@ packages:
       '@jridgewell/sourcemap-codec': 1.5.5
     dev: false
 
-  /@loaders.gl/core@4.3.4:
-    resolution: {integrity: sha512-cG0C5fMZ1jyW6WCsf4LoHGvaIAJCEVA/ioqKoYRwoSfXkOf+17KupK1OUQyUCw5XoRn+oWA1FulJQOYlXnb9Gw==}
-    dependencies:
-      '@loaders.gl/loader-utils': 4.3.4(@loaders.gl/core@4.3.4)
-      '@loaders.gl/schema': 4.3.4(@loaders.gl/core@4.3.4)
-      '@loaders.gl/worker-utils': 4.3.4(@loaders.gl/core@4.3.4)
-      '@probe.gl/log': 4.1.0
-    dev: false
-
-  /@loaders.gl/images@4.3.4(@loaders.gl/core@4.3.4):
-    resolution: {integrity: sha512-qgc33BaNsqN9cWa/xvcGvQ50wGDONgQQdzHCKDDKhV2w/uptZoR5iofJfuG8UUV2vUMMd82Uk9zbopRx2rS4Ag==}
-    peerDependencies:
-      '@loaders.gl/core': ^4.3.0
-    dependencies:
-      '@loaders.gl/core': 4.3.4
-      '@loaders.gl/loader-utils': 4.3.4(@loaders.gl/core@4.3.4)
-    dev: false
-
-  /@loaders.gl/loader-utils@4.3.4(@loaders.gl/core@4.3.4):
-    resolution: {integrity: sha512-tjMZvlKQSaMl2qmYTAxg+ySR6zd6hQn5n3XaU8+Ehp90TD3WzxvDKOMNDqOa72fFmIV+KgPhcmIJTpq4lAdC4Q==}
-    peerDependencies:
-      '@loaders.gl/core': ^4.3.0
-    dependencies:
-      '@loaders.gl/core': 4.3.4
-      '@loaders.gl/schema': 4.3.4(@loaders.gl/core@4.3.4)
-      '@loaders.gl/worker-utils': 4.3.4(@loaders.gl/core@4.3.4)
-      '@probe.gl/log': 4.1.0
-      '@probe.gl/stats': 4.1.0
-    dev: false
-
-  /@loaders.gl/schema@4.3.4(@loaders.gl/core@4.3.4):
-    resolution: {integrity: sha512-1YTYoatgzr/6JTxqBLwDiD3AVGwQZheYiQwAimWdRBVB0JAzych7s1yBuE0CVEzj4JDPKOzVAz8KnU1TiBvJGw==}
-    peerDependencies:
-      '@loaders.gl/core': ^4.3.0
-    dependencies:
-      '@loaders.gl/core': 4.3.4
-      '@types/geojson': 7946.0.16
-    dev: false
-
-  /@loaders.gl/worker-utils@4.3.4(@loaders.gl/core@4.3.4):
-    resolution: {integrity: sha512-EbsszrASgT85GH3B7jkx7YXfQyIYo/rlobwMx6V3ewETapPUwdSAInv+89flnk5n2eu2Lpdeh+2zS6PvqbL2RA==}
-    peerDependencies:
-      '@loaders.gl/core': ^4.3.0
-    dependencies:
-      '@loaders.gl/core': 4.3.4
-    dev: false
-
-  /@luma.gl/constants@9.1.2:
-    resolution: {integrity: sha512-j0aVKWJJEwL2LF+KCTRVQ5seTrpX3L7VKq7bQ97znp4YqIwIMp8vv3Tkhf5P+XdxcfXZlPZsG379PuuwYB8a7w==}
-    dev: false
-
-  /@luma.gl/core@9.1.2:
-    resolution: {integrity: sha512-yApcL9LQxj8GZ7MqMTPlTo5MrWyEv/JxK69GWwZdzpb2hW8fdt4eQLPNkDTEblKP7QJheMwGkPNTH7Q+l1l17w==}
-    dependencies:
-      '@math.gl/types': 4.1.0
-      '@probe.gl/env': 4.1.0
-      '@probe.gl/log': 4.1.0
-      '@probe.gl/stats': 4.1.0
-      '@types/offscreencanvas': 2019.7.3
-    dev: false
-
-  /@luma.gl/engine@9.1.2(@luma.gl/core@9.1.2)(@luma.gl/shadertools@9.1.2):
-    resolution: {integrity: sha512-OIQJvxQaPLyFMe+7C6vt+a5gA7T9feDaGtT7lyLkeVIc9dJFJYQkwLMGMZE5E83c2yYubptjz/RvmRz7vGfYxQ==}
-    peerDependencies:
-      '@luma.gl/core': ^9.1.0
-      '@luma.gl/shadertools': ^9.1.0
-    dependencies:
-      '@luma.gl/core': 9.1.2
-      '@luma.gl/shadertools': 9.1.2(@luma.gl/core@9.1.2)
-      '@math.gl/core': 4.1.0
-      '@math.gl/types': 4.1.0
-      '@probe.gl/log': 4.1.0
-      '@probe.gl/stats': 4.1.0
-    dev: false
-
-  /@luma.gl/shadertools@9.1.2(@luma.gl/core@9.1.2):
-    resolution: {integrity: sha512-sqQbdjH+n1nEsquSJHDlV3oVOxQzUhMxy4CAoRITR+rfIuKbTovtElMTwRD/7YZ6VuT0Y1uQAjL0KnZzHSfEXQ==}
-    peerDependencies:
-      '@luma.gl/core': ^9.1.0
-    dependencies:
-      '@luma.gl/core': 9.1.2
-      '@math.gl/core': 4.1.0
-      '@math.gl/types': 4.1.0
-      wgsl_reflect: 1.2.3
-    dev: false
-
-  /@luma.gl/webgl@9.1.2(@luma.gl/core@9.1.2):
-    resolution: {integrity: sha512-WAGdStjfoPHKdTwOZ1FFfHzjnOznvyR/1Xv9g58zI5kYCGA4E4lJoC0caC0SEXwaanR/iBiVaVF8nENEtSTKOA==}
-    peerDependencies:
-      '@luma.gl/core': ^9.1.0
-    dependencies:
-      '@luma.gl/constants': 9.1.2
-      '@luma.gl/core': 9.1.2
-      '@math.gl/types': 4.1.0
-      '@probe.gl/env': 4.1.0
-    dev: false
-
   /@mapbox/geojson-rewind@0.5.2:
     resolution: {integrity: sha512-tJaT+RbYGJYStt7wI3cq4Nl4SXxG8W7JDG5DMJu97V25RnbNg3QtQtf+KD+VLjNpWKYsRvXDNmNrBgEETr1ifA==}
     hasBin: true
@@ -1348,32 +1164,6 @@ packages:
       tinyqueue: 3.0.0
     dev: false
 
-  /@math.gl/core@4.1.0:
-    resolution: {integrity: sha512-FrdHBCVG3QdrworwrUSzXIaK+/9OCRLscxI2OUy6sLOHyHgBMyfnEGs99/m3KNvs+95BsnQLWklVfpKfQzfwKA==}
-    dependencies:
-      '@math.gl/types': 4.1.0
-    dev: false
-
-  /@math.gl/polygon@4.1.0:
-    resolution: {integrity: sha512-YA/9PzaCRHbIP5/0E9uTYrqe+jsYTQoqoDWhf6/b0Ixz8bPZBaGDEafLg3z7ffBomZLacUty9U3TlPjqMtzPjA==}
-    dependencies:
-      '@math.gl/core': 4.1.0
-    dev: false
-
-  /@math.gl/sun@4.1.0:
-    resolution: {integrity: sha512-i3q6OCBLSZ5wgZVhXg+X7gsjY/TUtuFW/2KBiq/U1ypLso3S4sEykoU/MGjxUv1xiiGtr+v8TeMbO1OBIh/HmA==}
-    dev: false
-
-  /@math.gl/types@4.1.0:
-    resolution: {integrity: sha512-clYZdHcmRvMzVK5fjeDkQlHUzXQSNdZ7s4xOqC3nJPgz4C/TZkUecTo9YS4PruZqtDda/ag4erndP0MIn40dGA==}
-    dev: false
-
-  /@math.gl/web-mercator@4.1.0:
-    resolution: {integrity: sha512-HZo3vO5GCMkXJThxRJ5/QYUYRr3XumfT8CzNNCwoJfinxy5NtKUd7dusNTXn7yJ40UoB8FMIwkVwNlqaiRZZAw==}
-    dependencies:
-      '@math.gl/core': 4.1.0
-    dev: false
-
   /@nodelib/fs.scandir@2.1.5:
     resolution: {integrity: sha512-vq24Bq3ym5HEQm2NKCr3yXDwjc7vTsEThRDnkp2DK9p1uqLR+DHurm/NOTo0KG7HYHU7eppKZj3MyqYuMBf62g==}
     engines: {node: '>= 8'}
@@ -1408,20 +1198,6 @@ packages:
     dependencies:
       playwright: 1.62.1
     dev: true
-
-  /@probe.gl/env@4.1.0:
-    resolution: {integrity: sha512-5ac2Jm2K72VCs4eSMsM7ykVRrV47w32xOGMvcgqn8vQdEMF9PRXyBGYEV9YbqRKWNKpNKmQJVi4AHM/fkCxs9w==}
-    dev: false
-
-  /@probe.gl/log@4.1.0:
-    resolution: {integrity: sha512-r4gRReNY6f+OZEMgfWEXrAE2qJEt8rX0HsDJQXUBMoc+5H47bdB7f/5HBHAmapK8UydwPKL9wCDoS22rJ0yq7Q==}
-    dependencies:
-      '@probe.gl/env': 4.1.0
-    dev: false
-
-  /@probe.gl/stats@4.1.0:
-    resolution: {integrity: sha512-EI413MkWKBDVNIfLdqbeNSJTs7ToBz/KVGkwi3D+dQrSIkRI2IYbWGAU3xX+D6+CI4ls8ehxMhNpUVMaZggDvQ==}
-    dev: false
 
   /@radix-ui/primitive@1.1.1:
     resolution: {integrity: sha512-SJ31y+Q/zAyShtXJc8x83i9TYdbAfHZ++tUZnvjJJqFjzsdUnKsxPL6IEtBlxKkU7yzer//GQtZSV4GbldL3YA==}
@@ -2309,10 +2085,6 @@ packages:
     resolution: {integrity: sha512-5IviulTZeRNp2vAJ514cc/HUlY5nZ9fCbq9DMyC52BrhFZACo3nI0R7qBxhQmo/d27NFe96ur/b7Wwxklda+kg==}
     dependencies:
       undici-types: 8.3.0
-
-  /@types/offscreencanvas@2019.7.3:
-    resolution: {integrity: sha512-ieXiYmgSRXUDeOntE1InxjWyvEelZGP63M+cGuquuRLuIKKT1osnkXjxev9B7d1nXSug5vpunx+gNlbVxMlC9A==}
-    dev: false
 
   /@types/pbf@3.0.5:
     resolution: {integrity: sha512-j3pOPiEcWZ34R6a6mN07mUkM4o4Lwf6hPNt8eilOeZhTFbxFXmKhvXl9Y28jotFPaI1bpPDJsbCprUoNke6OrA==}
@@ -3337,10 +3109,6 @@ packages:
       es-errors: 1.3.0
       gopd: 1.2.0
     dev: true
-
-  /earcut@2.2.4:
-    resolution: {integrity: sha512-/pjZsA1b4RPHbeWZQn66SWS8nZZWLQQ23oE3Eam7aroEFGEvwKAsJfZ9ytiEMycfzXWpca4FA9QIOehf7PocBQ==}
-    dev: false
 
   /earcut@3.0.2:
     resolution: {integrity: sha512-X7hshQbLyMJ/3RPhyObLARM2sNxxmRALLKx1+NVFFnQ9gKzmCrxm9+uLIAdBcvc8FNLpctqlQ2V6AE92Ol9UDQ==}
@@ -5327,10 +5095,6 @@ packages:
   /minimist@1.2.8:
     resolution: {integrity: sha512-2yyAR8qBkN3YuheJanUpWC5U3bb5osDywNB8RzDVlDwDHbocAJveqqj1u8+SVD7jkWT4yvsHCpWqqWqAxb0zCA==}
 
-  /mjolnir.js@3.0.0:
-    resolution: {integrity: sha512-siX3YCG7N2HnmN1xMH3cK4JkUZJhbkhRFJL+G5N1vH0mh1t5088rJknIoqDFWDIU6NPGvRRgLnYW3ZHjSMEBLA==}
-    dev: false
-
   /mkdirp-classic@0.5.3:
     resolution: {integrity: sha512-gKLcREMhtuZRwRAfqP3RFW+TK4JqApVBtOIftVgjuABpAtpxhPGaDcfvbhNvD0B8iD1oUr/txX35NjcaY6Ns/A==}
     dev: true
@@ -7145,10 +6909,6 @@ packages:
 
   /web-namespaces@2.0.1:
     resolution: {integrity: sha512-bKr1DkiNa2krS7qxNtdrtHAmzuYGFQLiQ13TsorsdT6ULTkPLKuu5+GsFpDlg6JFjUTwX2DyhMPG2be8uPrqsQ==}
-    dev: false
-
-  /wgsl_reflect@1.2.3:
-    resolution: {integrity: sha512-BQWBIsOn411M+ffBxmA6QRLvAOVbuz3Uk4NusxnqC1H7aeQcVLhdA3k2k/EFFFtqVjhz3z7JOOZF1a9hj2tv4Q==}
     dev: false
 
   /which-boxed-primitive@1.1.1:

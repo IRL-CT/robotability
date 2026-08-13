@@ -21,14 +21,6 @@
     "@astrojs/react": "^4.2.0",
     "@astrojs/rss": "^4.0.11",
     "@astrojs/sitemap": "^3.2.1",
-    "@deck.gl/core": "^9.1.2",
-    "@deck.gl/layers": "^9.1.2",
-    "@deck.gl/mapbox": "^9.1.2",
-    "@luma.gl/constants": "9.1.2",
-    "@luma.gl/core": "9.1.2",
-    "@luma.gl/engine": "9.1.2",
-    "@luma.gl/shadertools": "9.1.2",
-    "@luma.gl/webgl": "9.1.2",
     "@radix-ui/react-dialog": "^1.1.6",
     "@tailwindcss/vite": "^4.3.3",
     "@types/react": "^19.0.10",
@@ -59,14 +51,5 @@
     "prettier-plugin-astro": "^0.12.2",
     "sharp": "^0.32.6",
     "vitest": "^4.1.10"
-  },
-  "pnpm": {
-    "overrides": {
-      "@luma.gl/core": "9.1.2",
-      "@luma.gl/shadertools": "9.1.2",
-      "@luma.gl/constants": "9.1.2",
-      "@luma.gl/engine": "9.1.2",
-      "@luma.gl/webgl": "9.1.2"
-    }
   }
 }
