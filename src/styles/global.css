@@ -52,6 +52,11 @@
 
   html {
     scroll-behavior: smooth;
+    /* Clip horizontal overflow at the root. Invisible elements, like
+       closed hover cards, must never widen the document scroll area.
+       clip adds no scroll container, so sticky positioning and the
+       vertical scroll keep their current behavior. */
+    overflow-x: clip;
   }
 
   body {

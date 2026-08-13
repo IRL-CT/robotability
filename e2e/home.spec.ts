@@ -79,6 +79,38 @@ test.describe('home page', () => {
     await expect(card).toContainText(first.description);
   });
 
+  test('home fits a 390px viewport with no horizontal overflow', async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto('/');
+    // Wait for the network and the fonts so widths are final.
+    await page.waitForLoadState('networkidle').catch(() => {});
+    await page.evaluate(() => document.fonts.ready);
+
+    // The document must not widen past the viewport. Before the fix,
+    // the nav list and the closed hover cards pushed it to 580px.
+    const widths = await page.evaluate(() => ({
+      scrollWidth: document.documentElement.scrollWidth,
+      clientWidth: document.documentElement.clientWidth,
+    }));
+    expect(widths.scrollWidth).toBeLessThanOrEqual(widths.clientWidth);
+
+    // Every nav link must sit fully inside the viewport. Before the
+    // fix the list was 441px wide: Blog clipped, Paper and Code
+    // moved off-screen.
+    const links = page.locator('[data-testid="site-nav"] ul a');
+    expect(await links.count()).toBeGreaterThan(0);
+    for (const link of await links.all()) {
+      const box = await link.boundingBox();
+      expect(box).not.toBeNull();
+      if (box) {
+        expect(box.x).toBeGreaterThanOrEqual(0);
+        expect(box.x + box.width).toBeLessThanOrEqual(widths.clientWidth);
+      }
+    }
+  });
+
   test('footer carries the NYC OpenData ToU disclaimer verbatim', async ({
     page,
   }) => {
