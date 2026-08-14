@@ -1,7 +1,7 @@
 ---
 /**
  * DashedLink — inline link with a dashed underline.
- * The underline offset is 8px. The accent color appears on hover only.
+ * The accent color appears on hover only.
  */
 interface Props {
   /** Link target. */
@@ -28,7 +28,7 @@ const { href, external = false, class: className } = Astro.props;
     color: rgb(var(--color-text-base));
     text-decoration-line: underline;
     text-decoration-style: dashed;
-    text-underline-offset: 8px;
+    text-underline-offset: 0.2em;
     transition: var(--theme-transition);
   }
 

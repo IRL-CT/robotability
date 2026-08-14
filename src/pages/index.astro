@@ -66,8 +66,41 @@ doi = {10.1145/3706598.3714009},
 booktitle = {Proceedings of the 2025 CHI Conference on Human Factors in Computing Systems},
 articleno = {737},
 numpages = {17},
-series = {CHI '25}
+  series = {CHI '25}
 }`;
+
+// The readable-ink subset of the house palette. Six colors. One per bar.
+// The index aligns with features.json order. That order is descending weight.
+const FEATURE_INK = [
+  '#498573', // teal     - Pedestrian Density
+  '#5674b3', // blue     - Crowd Dynamics
+  '#e57264', // coral    - Pedestrian Flow
+  '#a08a6f', // tan      - Sidewalk Quality
+  '#83bd7b', // green    - Street Width
+  '#7a6f63', // warmgrey - Density of Street Furniture
+];
+
+// The dark edge color. It matches the paper patch.edgecolor.
+const FEATURE_EDGE = '#1a1a1a';
+
+// Parse the survey weights. Scale the bars to the largest weight.
+// The data file is the only source. Do not hardcode the maximum.
+const maxFeatureWeight = Math.max(
+  ...features.map((feature) => parseFloat(feature.weight))
+);
+
+// Build the chart rows. Each row pairs a feature with its ink color
+// and its proportional bar width. The width is a percent of the track.
+const featureRows = features.map((feature, index) => ({
+  name: feature.name,
+  weight: feature.weight,
+  widthPercent: (parseFloat(feature.weight) / maxFeatureWeight) * 100,
+  color: FEATURE_INK[index],
+}));
+
+// The figure label for assistive tech. It names the leader.
+// It stays in sync with the data. Do not hardcode the values.
+const chartLabel = `Bar chart of the six key features and their survey weights. ${featureRows[0].name} leads at ${featureRows[0].weight.replace('%', ' percent')}.`;
 ---
 
 <Layout
@@ -139,18 +172,30 @@ series = {CHI '25}
       </div>
     </section>
 
-    <!-- Section 3: key features. The pills render from features.json. -->
+    <!-- Section 3: key features. The bar chart renders from features.json. -->
     <section id='key-features' class='home-section'>
       <SectionHeading id='key-features-heading'>Key Features</SectionHeading>
-      <div class='flex flex-wrap gap-3'>
+      <figure
+        class='feature-chart'
+        role='img'
+        aria-label={chartLabel}
+        style={`--feature-edge: ${FEATURE_EDGE};`}
+      >
         {
-          features.map((feature) => (
-            <span data-testid='feature-pill' class='feature-pill'>
-              {feature.name}: {feature.weight}
-            </span>
+          featureRows.map((row) => (
+            <div data-testid='feature-pill' class='feature-row'>
+              <span class='feature-label'>{row.name}</span>
+              <div class='feature-track'>
+                <div
+                  class='feature-bar'
+                  style={`width: ${row.widthPercent}%; background-color: ${row.color};`}
+                />
+              </div>
+              <span class='feature-value'>{row.weight}</span>
+            </div>
           ))
         }
-      </div>
+      </figure>
       <p class='mt-6 max-w-prose text-skin-base'>
         Our findings reveal that these factors collectively account for 48% of
         the total Robotability Score. Areas with highest R are 4.3 times more
@@ -275,15 +320,83 @@ series = {CHI '25}
     margin-top: 4rem;
   }
 
-  /* Feature pill. Sharp corners. Token-based colors. */
-  .feature-pill {
-    display: inline-block;
-    padding: 0.25rem 0.75rem;
-    font-size: 0.875rem;
+  /* Key features bar chart. It uses the paper house palette. */
+  .feature-chart {
+    margin: 0;
+    max-width: 48rem;
+    padding: 1.25rem 1rem;
+    background-color: #f7f3ec; /* PAPER ground. Light mode. */
+  }
+
+  /* Dark mode. Use a token ground so the figure does not glare. */
+  :global(html[data-theme='dark']) .feature-chart {
+    background-color: rgb(var(--color-card) / 0.4);
+  }
+
+  /* One row. Label on the left. Track in the middle. Value on the right. */
+  .feature-row {
+    display: grid;
+    grid-template-columns: max-content minmax(0, 1fr) max-content;
+    align-items: center;
+    column-gap: 0.75rem;
+  }
+
+  /* Feature label. Real text. It adapts to the theme. */
+  .feature-label {
     color: rgb(var(--color-text-base));
-    background-color: rgb(var(--color-card) / 0.5);
-    border: 1px solid rgb(var(--color-border) / 0.55);
-    border-radius: 0;
+    font-size: 0.875rem;
+    line-height: 1.4;
+  }
+
+  /* Value label. It adapts to the theme. Tabular figures line up. */
+  .feature-value {
+    color: rgb(var(--color-text-base));
+    font-size: 0.875rem;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+  }
+
+  /* The bar track. It holds the gridlines and the bar fill. */
+  .feature-track {
+    position: relative;
+    padding-block: 0.4rem;
+    background-image: repeating-linear-gradient(
+      to right,
+      rgb(var(--color-text-base) / 0.2) 0,
+      rgb(var(--color-text-base) / 0.2) 1px,
+      transparent 1px,
+      transparent 25%
+    );
+  }
+
+  /* The 0 baseline. It spans the full track height. It is clearer than gridlines. */
+  .feature-track::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 1px;
+    background-color: rgb(var(--color-text-base) / 0.45);
+  }
+
+  /* The bar fill. Thin dark edge. Fixed palette color. */
+  .feature-bar {
+    box-sizing: border-box;
+    height: 1.25rem;
+    border: 1px solid var(--feature-edge);
+  }
+
+  /* Narrow screens. Stack the label above the bar. */
+  @media (max-width: 639px) {
+    .feature-row {
+      grid-template-columns: minmax(0, 1fr) max-content;
+      grid-template-rows: auto auto;
+      row-gap: 0.25rem;
+    }
+    .feature-label {
+      grid-column: 1 / -1;
+    }
   }
 
   /* Indicator entry. Give the anchor a clear hit area. */

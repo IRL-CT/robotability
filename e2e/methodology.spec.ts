@@ -18,11 +18,11 @@ interface WeightEntry {
   sourceUrl: string | null;
 }
 
-// The nav must show these five items on every default-layout page.
+// The nav must show these four items on every default-layout page.
+// The blog is disabled, so it carries no nav entry.
 const NAV_ITEMS = [
   { name: 'Map', url: '/map' },
   { name: 'Methodology', url: '/methodology' },
-  { name: 'Blog', url: '/blog' },
   { name: 'Paper', url: 'https://doi.org/10.1145/3706598.3714009' },
   { name: 'Code', url: 'https://github.com/FAR-LAB/robotability-nyc' },
 ];
@@ -109,7 +109,7 @@ test.describe('methodology page', () => {
 });
 
 test.describe('site navigation', () => {
-  test('shows the five nav items on / and /methodology', async ({ page }) => {
+  test('shows the four nav items on / and /methodology', async ({ page }) => {
     for (const pagePath of ['/', '/methodology']) {
       await page.goto(pagePath);
       const nav = page.getByTestId('site-nav');

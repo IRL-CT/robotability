@@ -119,7 +119,7 @@ const linkProps = href
   : {};
 ---
 
-<span class:list={["hover-reveal", `hover-reveal--${placement}`, `hover-reveal--${shape}`]} style={inlineStyle} data-hover-reveal={id} data-placement={placement}
+<span class:list={["hover-reveal", `hover-reveal--${placement}`, variant !== "text" && `hover-reveal--${shape}`]} style={inlineStyle} data-hover-reveal={id} data-placement={placement}
 ><span class="hover-reveal__word" tabindex="0" aria-describedby={id ? `${id}-card` : undefined}><slot /></span><svg class="hover-reveal__tether" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true"><path d={tetherPath} vector-effect="non-scaling-stroke" pathLength="100" /></svg><CardTag class:list={["hover-reveal__card", `hover-reveal__card--${variant}`]} id={id ? `${id}-card` : undefined} role={href ? undefined : "img"} aria-label={label} {...linkProps}>{variant === "image" && src && <img src={src} alt={alt} loading="lazy" draggable="false" />}{variant === "logo" && src && <img src={src} alt={alt} loading="lazy" draggable="false" class="is-logo" />}{variant === "text" && text && <span class="hover-reveal__text">{text}</span>}</CardTag></span>
 
 <script>
@@ -293,12 +293,11 @@ const linkProps = href
         const dyBase = parseFloat(cs.getPropertyValue("--reveal-dy-base")) || 78;
         const authoredDist = parseFloat(cs.getPropertyValue("--reveal-dist")) || 1;
 
-        let cardW = size, cardH = size;
-        if (wrapper.classList.contains("hover-reveal--rect")) {
-          cardW = size * 1.5; cardH = size;
-        } else if (wrapper.classList.contains("hover-reveal--portrait")) {
-          cardW = size * 0.72; cardH = size * 1.1;
-        }
+        // Measure the real card box. Text cards size with their content,
+        // so the size tokens alone misjudge them. offsetWidth ignores
+        // transform and opacity, so the closed card still measures.
+        const cardW = card.offsetWidth || size;
+        const cardH = card.offsetHeight || size;
 
         const authored = (wrapper.dataset.placement || "top-right") as Placement;
         const wordCx = (wordRect.left + wordRect.right) / 2;

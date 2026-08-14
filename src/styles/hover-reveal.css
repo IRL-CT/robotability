@@ -144,16 +144,22 @@
   padding: 18%;
 }
 
+/* Text card. The width is fixed so the absolutely positioned card
+   never collapses to its minimum content width. The height follows
+   the wrapped text. Placement reads both through offsetWidth and
+   offsetHeight in the component script. */
 .hover-reveal__card--text {
+  display: block;
   border-radius: 2px;
-  width: auto;
-  max-width: 220px;
+  width: 220px;
+  max-width: calc(100vw - 24px);
   height: auto;
-  padding: 0.7rem 0.85rem;
+  padding: 0.8rem 1rem;
   font-family: var(--font-body);
-  font-size: 0.78rem;
-  line-height: 1.45;
+  font-size: 0.8rem;
+  line-height: 1.5;
   letter-spacing: 0.005em;
+  text-align: left;
   color: rgb(var(--color-text-base));
 }
 

@@ -1,6 +1,5 @@
 ---
 import BaseNavigation from '@components/layout/BaseNavigation.astro';
-import BaseFooter from '@components/layout/BaseFooter.astro';
 import BaseHead from '../components/layout/BaseHead.astro';
 import '../styles/global.css';
 
@@ -41,6 +40,5 @@ const { title, description, classList, pageTitle, ogImage } = Astro.props;
   </head>
   <body class:list={[classList]}>
     <slot />
-    <BaseFooter />
   </body>
 </html>

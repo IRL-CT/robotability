@@ -427,11 +427,11 @@ test.describe('end-to-end journey', () => {
     await expect(page.getByTestId('site-nav')).toBeVisible();
     await expect(page.locator('main h1').first()).toBeVisible();
 
-    // The nav lists the five site links.
+    // The nav lists the four site links. The blog is disabled, so it
+    // carries no nav entry.
     const nav = page.getByTestId('site-nav');
     await expect(nav.getByRole('link', { name: 'Map', exact: true })).toBeVisible();
     await expect(nav.getByRole('link', { name: 'Methodology', exact: true })).toBeVisible();
-    await expect(nav.getByRole('link', { name: 'Blog', exact: true })).toBeVisible();
 
     // Click the Map link. The router moves to /map and the map mounts.
     await nav.getByRole('link', { name: 'Map', exact: true }).click();
