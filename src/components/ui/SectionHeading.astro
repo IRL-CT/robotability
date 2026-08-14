@@ -1,9 +1,8 @@
 ---
 /**
  * SectionHeading — main section heading.
- * It renders a bold display heading with a gradient underline rule.
- * The rule matches .main-section-heading::after on the reference site:
- * 2px tall, gradient to the right, text-base color at 0.5 to 0.15 opacity.
+ * It renders a bold display heading with a plain underline rule.
+ * The rule is 1px tall, solid, text-base color at 0.3 opacity.
  */
 interface Props {
   /** Heading level. Defaults to h2. */
@@ -34,12 +33,7 @@ const Tag = level;
     bottom: 0;
     left: 0;
     width: 100%;
-    height: 2px;
-    background: linear-gradient(
-      to right,
-      rgba(var(--color-text-base), 0.5),
-      rgba(var(--color-text-base), 0.15)
-    );
-    border-radius: 2px;
+    height: 1px;
+    background: rgba(var(--color-text-base), 0.3);
   }
 </style>

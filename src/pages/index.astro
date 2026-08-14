@@ -320,23 +320,20 @@ const chartLabel = `Bar chart of the six key features and their survey weights. 
     margin-top: 4rem;
   }
 
-  /* Key features bar chart. It uses the paper house palette. */
+  /* Key features bar chart. The bars carry the paper house palette.
+     The figure has no background. It inherits the site ground. */
   .feature-chart {
     margin: 0;
     max-width: 48rem;
     padding: 1.25rem 1rem;
-    background-color: #f7f3ec; /* PAPER ground. Light mode. */
   }
 
-  /* Dark mode. Use a token ground so the figure does not glare. */
-  :global(html[data-theme='dark']) .feature-chart {
-    background-color: rgb(var(--color-card) / 0.4);
-  }
-
-  /* One row. Label on the left. Track in the middle. Value on the right. */
+  /* One row. Label on the left. Track in the middle. Value on the right.
+     The label column has a fixed width, so every track starts at the
+     same x position. */
   .feature-row {
     display: grid;
-    grid-template-columns: max-content minmax(0, 1fr) max-content;
+    grid-template-columns: 13rem minmax(0, 1fr) max-content;
     align-items: center;
     column-gap: 0.75rem;
   }
@@ -362,8 +359,8 @@ const chartLabel = `Bar chart of the six key features and their survey weights. 
     padding-block: 0.4rem;
     background-image: repeating-linear-gradient(
       to right,
-      rgb(var(--color-text-base) / 0.2) 0,
-      rgb(var(--color-text-base) / 0.2) 1px,
+      rgba(var(--color-text-base), 0.2) 0,
+      rgba(var(--color-text-base), 0.2) 1px,
       transparent 1px,
       transparent 25%
     );
@@ -377,7 +374,7 @@ const chartLabel = `Bar chart of the six key features and their survey weights. 
     top: 0;
     bottom: 0;
     width: 1px;
-    background-color: rgb(var(--color-text-base) / 0.45);
+    background-color: rgba(var(--color-text-base), 0.45);
   }
 
   /* The bar fill. Thin dark edge. Fixed palette color. */
