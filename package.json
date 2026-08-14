@@ -14,55 +14,42 @@
     "start": "astro dev",
     "build": "astro build",
     "preview": "astro preview",
-    "astro": "astro"
+    "astro": "astro",
+    "test": "vitest run"
   },
   "dependencies": {
     "@astrojs/react": "^4.2.0",
     "@astrojs/rss": "^4.0.11",
     "@astrojs/sitemap": "^3.2.1",
-    "@deck.gl/core": "^9.1.2",
-    "@deck.gl/layers": "^9.1.2",
-    "@deck.gl/mapbox": "^9.1.2",
-    "@eliancodes/brutal-ui": "^0.2.3",
-    "@luma.gl/core": "9.1.2",
-    "@luma.gl/shadertools": "9.1.2",
-    "@luma.gl/constants": "9.1.2",
-    "@luma.gl/engine": "9.1.2",
-    "@luma.gl/webgl": "9.1.2",
     "@radix-ui/react-dialog": "^1.1.6",
+    "@tailwindcss/vite": "^4.3.3",
     "@types/react": "^19.0.10",
     "@types/react-dom": "^19.0.4",
-    "@unocss/astro": "^0.57.7",
     "astro": "^5.3.0",
     "astro-font": "^0.0.80",
+    "hyparquet": "^1.28.1",
     "lucide-react": "^0.475.0",
     "maplibre-gl": "^5.1.0",
+    "pmtiles": "^4.5.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "satori": "^0.5.0",
-    "satori-html": "^0.3.2"
+    "satori-html": "^0.3.2",
+    "tailwindcss": "^4.3.3"
   },
   "devDependencies": {
     "@iconify-json/logos": "^1.1.41",
     "@iconify-json/uil": "^1.1.8",
+    "@playwright/test": "^1.62.1",
     "@resvg/resvg-js": "^2.6.0",
+    "@types/node": "^26.2.0",
     "@typescript-eslint/parser": "^6.15.0",
-    "@unocss/reset": "^0.57.7",
     "eslint": "^8.56.0",
     "eslint-plugin-astro": "^0.29.1",
     "eslint-plugin-jsx-a11y": "^6.8.0",
     "prettier": "^3.1.1",
     "prettier-plugin-astro": "^0.12.2",
     "sharp": "^0.32.6",
-    "unocss": "^0.57.7"
-  },
-  "pnpm": {
-    "overrides": {
-      "@luma.gl/core": "9.1.2",
-      "@luma.gl/shadertools": "9.1.2",
-      "@luma.gl/constants": "9.1.2",
-      "@luma.gl/engine": "9.1.2",
-      "@luma.gl/webgl": "9.1.2"
-    }
+    "vitest": "^4.1.10"
   }
 }

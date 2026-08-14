@@ -1,0 +1,38 @@
+---
+/**
+ * DashedLink — inline link with a dashed underline.
+ * The accent color appears on hover only.
+ */
+interface Props {
+  /** Link target. */
+  href: string;
+  /** Open the link in a new tab. */
+  external?: boolean;
+  /** Extra classes for the anchor. */
+  class?: string;
+}
+
+const { href, external = false, class: className } = Astro.props;
+---
+
+<a
+  href={href}
+  class:list={['dashed-link', className]}
+  {...(external ? { target: '_blank', rel: 'noopener noreferrer' } : {})}
+>
+  <slot />
+</a>
+
+<style>
+  .dashed-link {
+    color: rgb(var(--color-text-base));
+    text-decoration-line: underline;
+    text-decoration-style: dashed;
+    text-underline-offset: 0.2em;
+    transition: var(--theme-transition);
+  }
+
+  .dashed-link:hover {
+    color: rgb(var(--color-accent));
+  }
+</style>

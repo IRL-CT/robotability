@@ -3,7 +3,13 @@ interface Props {
   pageTitle?: string;
 }
 
+// Site navigation items.
+// Keep this list in sync with navigationItems in src/layouts/Default.astro.
 const navigationItems = [
+  { name: 'Map', url: '/map', external: false },
+  { name: 'Methodology', url: '/methodology', external: false },
+  { name: 'Paper', url: 'https://doi.org/10.1145/3706598.3714009', external: true },
+  { name: 'Code', url: 'https://github.com/FAR-LAB/robotability-nyc', external: true },
 ];
 
 const socialIcons = [
@@ -28,6 +34,9 @@ const { pageTitle } = Astro.props;
               class='text-lg font-medium hover:text-green hover:underline transition-all duration-150 ease-in-out'
               href={item.url}
               title={`Go to ${item.name}`}
+              {...(item.external
+                ? { target: '_blank', rel: 'noopener noreferrer' }
+                : {})}
             >
               {item.name}
             </a>

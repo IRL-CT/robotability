@@ -1,6 +1,5 @@
 ---
 import BaseNavigation from '@components/layout/BaseNavigation.astro';
-import BaseFooter from '@components/layout/BaseFooter.astro';
 import BaseHead from '../components/layout/BaseHead.astro';
 import '../styles/global.css';
 
@@ -18,11 +17,8 @@ const { title, description, classList, pageTitle, ogImage } = Astro.props;
 <html lang='en' class='h-full'>
   <head>
     <BaseHead ogImage={ogImage} title={title} description={description} />
-    <link 
-      rel="stylesheet" 
-      href="https://unpkg.com/maplibre-gl@^4.7.1/dist/maplibre-gl.css"
-      crossorigin="anonymous"
-    />
+    <!-- The maplibre CSS now ships from the npm package.
+         MapCanvas imports 'maplibre-gl/dist/maplibre-gl.css'. -->
     <style>
       body {
         margin: 0;
@@ -44,6 +40,5 @@ const { title, description, classList, pageTitle, ogImage } = Astro.props;
   </head>
   <body class:list={[classList]}>
     <slot />
-    <BaseFooter />
   </body>
 </html>

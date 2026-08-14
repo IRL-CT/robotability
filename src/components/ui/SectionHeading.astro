@@ -1,0 +1,45 @@
+---
+/**
+ * SectionHeading — main section heading.
+ * It renders a bold display heading with a gradient underline rule.
+ * The rule matches .main-section-heading::after on the reference site:
+ * 2px tall, gradient to the right, text-base color at 0.5 to 0.15 opacity.
+ */
+interface Props {
+  /** Heading level. Defaults to h2. */
+  level?: 'h2' | 'h3';
+  /** Optional id attribute. */
+  id?: string;
+}
+
+const { level = 'h2', id } = Astro.props;
+const Tag = level;
+---
+
+<Tag id={id} class='section-heading text-2xl font-bold text-skin-base'>
+  <slot />
+</Tag>
+
+<style>
+  .section-heading {
+    position: relative;
+    display: inline-block;
+    padding-bottom: 0.5rem;
+    margin-bottom: 1.25rem;
+  }
+
+  .section-heading::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    height: 2px;
+    background: linear-gradient(
+      to right,
+      rgba(var(--color-text-base), 0.5),
+      rgba(var(--color-text-base), 0.15)
+    );
+    border-radius: 2px;
+  }
+</style>

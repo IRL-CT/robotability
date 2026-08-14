@@ -1,0 +1,33 @@
+# Example cluster config for the Robotability snapshot pipeline.
+# Copy this file, fill in the real lab paths, and pass it to run_all.sh
+# with --config. Never commit the filled-in copy. Never put real lab paths
+# in the repo.
+#
+# All paths below are PLACEHOLDERS. Replace /share/your-lab with the real
+# share root before use.
+
+lab:
+  # Directory that holds one sub-directory per dashcam collection day.
+  # Layout: <dashcam_root>/<YYYY-MM-DD>/detections.csv and md.csv.
+  # See robotability-nyc/feature_processing/traffic.py.
+  dashcam_root: /share/your-lab/dashcam/detections
+
+  # Camera counts per intersection from the "Surveilling the Surveillance"
+  # dataset. Columns: n_cameras_median, geometry_pano.
+  surveillance_csv: /share/your-lab/surveillance/counts_per_intersections.csv
+
+  # NYC 1-foot DEM raster (unzipped NYC_DEM_1ft_Int).
+  dem_path: /share/your-lab/dem/DEM_LiDAR_1ft_2010_Improved_NYC_int.tif
+
+# Working area for downloads and intermediate tables.
+work_dir: /share/your-lab/robotability/work
+
+# Snapshot output root. Each run writes one dated directory.
+output_dir: /share/your-lab/robotability/snapshots
+
+# How the cluster triggers the CI publish workflow after a successful run.
+#   dispatch  - call the GitHub repository_dispatch API (needs a token).
+#   push      - push the orphan branch snapshots-incoming (SSH deploy key).
+#   none      - do not trigger. A scheduled CI job polls instead.
+# See RUNBOOK.md for the setup of each mode.
+trigger_mode: dispatch

@@ -1,0 +1,245 @@
+---
+/**
+ * Methodology page.
+ * It explains the Robotability score formula, the feature weights, the
+ * feature data sources, the live refresh scope, and the normalization.
+ * The weights table reads src/data/weights.json. That file copies
+ * robotability-nyc/survey_processing/feature_weights.csv verbatim.
+ * Display names come from the FEATURES dict in score.ipynb cell 6.
+ * Polarities come from the POLARITIES dict in score.ipynb cell 96.
+ * Dataset ids come from pull_data.sh and the verified SODA client.
+ */
+import Layout from '@layouts/Default.astro';
+import SectionHeading from '@components/ui/SectionHeading.astro';
+import SubHeading from '@components/ui/SubHeading.astro';
+import Card from '@components/ui/Card.astro';
+import DashedLink from '@components/ui/DashedLink.astro';
+import weights from '../data/weights.json';
+
+interface WeightEntry {
+  feature: string;
+  displayName: string;
+  weight: string;
+  polarity: 1 | -1;
+  sourceType: 'nyc_open_data' | 'external_public' | 'in_house' | 'constant';
+  datasetId: string[] | null;
+  sourceUrl: string | null;
+}
+
+const entries = weights as WeightEntry[];
+
+// Human labels for each source type.
+const SOURCE_LABELS: Record<WeightEntry['sourceType'], string> = {
+  nyc_open_data: 'NYC OpenData',
+  external_public: 'Other public data',
+  in_house: 'In-house (lab data)',
+  constant: 'Constant',
+};
+
+// Render a weight as a percent with two decimals.
+function percent(weight: string): string {
+  return `${(Number.parseFloat(weight) * 100).toFixed(2)}%`;
+}
+
+// Build the canonical dataset page URL for one NYC OpenData id.
+function datasetUrl(id: string): string {
+  return `https://data.cityofnewyork.us/dataset/${id}`;
+}
+
+// NYC OpenData Terms of Use disclaimer for third-party applications.
+// Printed verbatim. It must match the sentence on the home page.
+const TOU_DISCLAIMER =
+  'The City of New York can not vouch for the accuracy or completeness of data provided by this web site or application or for the usefulness or integrity of the web site or application. This site provides applications using data that has been modified for use from its original source, NYC.gov, the official web site of the City of New York.';
+---
+
+<Layout
+  title='Methodology | Robotability'
+  description='How the Robotability score works: formula, weights, feature sources, live refresh scope, and normalization.'
+  pageTitle='Methodology'
+>
+  <main class='mx-auto w-full max-w-4xl px-6 py-12'>
+    <SectionHeading id='formula'>How the score works</SectionHeading>
+    <section data-testid='formula-section' class='flex flex-col gap-4'>
+      <Card>
+        <p class='text-lg font-bold text-skin-base'>
+          R = Σ ( polarity × normalized value × weight )
+        </p>
+        <p class='mt-3 text-skin-base'>
+          The sum runs over 19 features. Each feature contributes one term.
+        </p>
+        <ul class='mt-3 list-disc pl-6 text-skin-base'>
+          <li>The polarity is +1 or −1. It sets whether more of the feature helps or hurts.</li>
+          <li>The normalized value is the min-max scaled measurement. It falls in [0, 1].</li>
+          <li>The weight comes from the expert survey. All weights sum to 1.</li>
+        </ul>
+      </Card>
+      <p class='text-skin-base'>
+        The pipeline measures every feature at sample points spaced 50 feet
+        apart along each sidewalk segment. It computes the score at each
+        point. It then averages the point scores into one score per segment.
+        The map shows the segment scores.
+      </p>
+    </section>
+
+    <div class='mt-12'></div>
+    <SectionHeading id='weights'>Feature weights</SectionHeading>
+    <p class='mb-4 text-skin-base'>
+      The survey produced one weight per feature. The table lists all 19.
+      The raw values are copied verbatim from
+      <DashedLink
+        href='https://github.com/FAR-LAB/robotability-nyc/blob/main/survey_processing/feature_weights.csv'
+        external>feature_weights.csv</DashedLink
+      > in the study repository.
+    </p>
+    <Card class='overflow-x-auto'>
+      <table data-testid='weights-table' class='w-full text-left text-sm'>
+        <thead>
+          <tr class='border-b border-skin-line'>
+            <th class='py-2 pr-4 font-bold'>Feature</th>
+            <th class='py-2 pr-4 font-bold'>Weight</th>
+            <th class='py-2 pr-4 font-bold'>Weight (raw)</th>
+            <th class='py-2 pr-4 font-bold'>Polarity</th>
+            <th class='py-2 font-bold'>Source</th>
+          </tr>
+        </thead>
+        <tbody>
+          {
+            entries.map((entry) => (
+              <tr class='border-b border-skin-line/50 align-top'>
+                <td class='py-2 pr-4'>{entry.displayName}</td>
+                <td class='py-2 pr-4'>{percent(entry.weight)}</td>
+                <td class='py-2 pr-4 font-mono text-xs'>{entry.weight}</td>
+                <td class='py-2 pr-4'>
+                  {entry.polarity === 1 ? '+1' : '-1'}
+                </td>
+                <td class='py-2'>{SOURCE_LABELS[entry.sourceType]}</td>
+              </tr>
+            ))
+          }
+        </tbody>
+      </table>
+    </Card>
+
+    <div class='mt-12'></div>
+    <SectionHeading id='sources'>Feature sources</SectionHeading>
+    <p class='mb-4 text-skin-base'>
+      Nine features use NYC OpenData datasets. Three features use other
+      public data. Four features use in-house lab data. Three features are
+      constants in the current New York City score.
+    </p>
+    <Card class='overflow-x-auto'>
+      <table data-testid='sources-table' class='w-full text-left text-sm'>
+        <thead>
+          <tr class='border-b border-skin-line'>
+            <th class='py-2 pr-4 font-bold'>Feature</th>
+            <th class='py-2 pr-4 font-bold'>Source type</th>
+            <th class='py-2 font-bold'>Data</th>
+          </tr>
+        </thead>
+        <tbody>
+          {
+            entries.map((entry) => (
+              <tr class='border-b border-skin-line/50 align-top'>
+                <td class='py-2 pr-4'>{entry.displayName}</td>
+                <td class='py-2 pr-4'>{SOURCE_LABELS[entry.sourceType]}</td>
+                <td class='py-2'>
+                  {entry.sourceType === 'nyc_open_data' && entry.datasetId && (
+                    <ul class='flex flex-col gap-1'>
+                      {entry.datasetId.map((id) => (
+                        <li>
+                          <DashedLink href={datasetUrl(id)} external>
+                            {id}
+                          </DashedLink>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                  {entry.sourceType === 'external_public' && entry.sourceUrl && (
+                    <DashedLink href={entry.sourceUrl} external>
+                      Source data
+                    </DashedLink>
+                  )}
+                  {entry.sourceType === 'in_house' && (
+                    <span>
+                      Computed by the lab cluster. Not served by a public API.
+                    </span>
+                  )}
+                  {entry.sourceType === 'constant' && (
+                    <span>Fixed at 1 for every segment in the current score.</span>
+                  )}
+                </td>
+              </tr>
+            ))
+          }
+        </tbody>
+      </table>
+    </Card>
+
+    <div class='mt-12'></div>
+    <SectionHeading id='live'>Live scores and snapshots</SectionHeading>
+    <section class='flex flex-col gap-4'>
+      <SubHeading>What refreshes live</SubHeading>
+      <p class='text-skin-base'>
+        The map offers an opt-in live refresh. It recomputes nine features
+        from NYC OpenData through the Socrata API. It also recomputes the
+        charging station feature from the live CitiBike station feed. These
+        ten features rely on public APIs that the browser can query.
+      </p>
+      <SubHeading>What stays pinned</SubHeading>
+      <p class='text-skin-base'>
+        The snapshot scores stay pinned. The weights stay pinned. The four
+        in-house features stay pinned. The three constants stay pinned. The
+        FCC broadband feature and the elevation slope feature also stay
+        pinned. The lab cluster computes these features. They need lab
+        storage and heavy computation, so the browser cannot recompute them.
+      </p>
+      <SubHeading>Why the split exists</SubHeading>
+      <p class='text-skin-base'>
+        The cluster runs the full pipeline on a schedule and publishes one
+        snapshot per run. The browser refreshes only what public APIs can
+        serve. Live values always use the normalization stats of the viewed
+        snapshot. This keeps live scores comparable with snapshot scores.
+      </p>
+    </section>
+
+    <div class='mt-12'></div>
+    <SectionHeading id='normalization'>Normalization</SectionHeading>
+    <section class='flex flex-col gap-4'>
+      <p class='text-skin-base'>
+        Each feature is scaled into [0, 1] before the weighted sum. The
+        scaling is min-max normalization:
+      </p>
+      <Card>
+        <p class='font-bold text-skin-base'>
+          normalized = (value − min) / (max − min)
+        </p>
+      </Card>
+      <p class='text-skin-base'>
+        The min and max come from the snapshot manifest. Each snapshot ships
+        one min and one max per feature. The manifest records the stats of
+        the run that produced the snapshot. Live refresh uses the stats of
+        the viewed snapshot, never new stats. Results are clamped to [0, 1].
+      </p>
+    </section>
+
+    <div class='mt-12'></div>
+    <SectionHeading id='attribution'>NYC OpenData attribution</SectionHeading>
+    <section class='flex flex-col gap-4'>
+      <p class='text-skin-base'>
+        This site uses data from
+        <DashedLink href='https://opendata.cityofnewyork.us/' external
+          >NYC OpenData</DashedLink
+        >. The data comes from the
+        <DashedLink
+          href='https://opendata.cityofnewyork.us/overview/'
+          external>NYC OpenData Terms of Use</DashedLink
+        >:
+      </p>
+      <Card>
+        <p data-testid='tou-disclaimer' class='text-skin-base'>
+          {TOU_DISCLAIMER}
+        </p>
+      </Card>
+    </section>
+  </main>
+</Layout>

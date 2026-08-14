@@ -1,0 +1,110 @@
+{
+  "date": "2026-02-01",
+  "row_count": 144,
+  "score_min": -0.1162804663181305,
+  "score_max": 0.26194852590560913,
+  "feature_stats": {
+    "sidewalk_width": {
+      "min": 0,
+      "max": 1
+    },
+    "pedestrian_density": {
+      "min": 0,
+      "max": 1
+    },
+    "street_furniture_density": {
+      "min": 0,
+      "max": 1
+    },
+    "sidewalk_roughness": {
+      "min": 1,
+      "max": 1
+    },
+    "surface_condition": {
+      "min": 0,
+      "max": 1
+    },
+    "communication_infrastructure": {
+      "min": 0,
+      "max": 1
+    },
+    "slope_gradient": {
+      "min": 0,
+      "max": 1
+    },
+    "charging_station_proximity": {
+      "min": 0,
+      "max": 1
+    },
+    "curb_ramp_availability": {
+      "min": 0,
+      "max": 1
+    },
+    "crowd_dynamics": {
+      "min": 0,
+      "max": 1
+    },
+    "traffic_management": {
+      "min": 0,
+      "max": 1
+    },
+    "surveillance_coverage": {
+      "min": 0,
+      "max": 1
+    },
+    "zoning_laws": {
+      "min": 0,
+      "max": 1
+    },
+    "bike_lane_availability": {
+      "min": 0,
+      "max": 1
+    },
+    "gps_signal_strength": {
+      "min": 1,
+      "max": 1
+    },
+    "bicycle_traffic": {
+      "min": 0,
+      "max": 1
+    },
+    "vehicle_traffic": {
+      "min": 0,
+      "max": 1
+    },
+    "digital_map_existence": {
+      "min": 1,
+      "max": 1
+    },
+    "intersection_safety": {
+      "min": 0,
+      "max": 1
+    }
+  },
+  "weights_sha256": "6278272614fe5e012874a2804e9e576f21f5a9cd4b952eb9296ccb6932965beb",
+  "partial": false,
+  "feature_vectors": true,
+  "files": [
+    {
+      "name": "segments.pmtiles",
+      "sha256": "1052c1db8d7834f5b6db4a5d1c7485ac9dd107a906ee625807a65f6c944d991a",
+      "bytes": 15485
+    },
+    {
+      "name": "features.parquet",
+      "sha256": "dc39f8131799b5ef58eecad45e68824e1c7abec230b9ee6248db375dc9df764e",
+      "bytes": 13649
+    },
+    {
+      "name": "census.pmtiles",
+      "sha256": "6e0a22aeecd775420fd68b0295cfbc24f454a234f8f5fbf8b8b328955f35e192",
+      "bytes": 733101
+    }
+  ],
+  "tag": "fixture-b",
+  "urls": {
+    "tiles": "/snapshots/fixture-b/segments.pmtiles",
+    "parquet": "/snapshots/fixture-b/features.parquet",
+    "census": "/snapshots/fixture-b/census.pmtiles"
+  }
+}

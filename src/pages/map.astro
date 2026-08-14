@@ -1,8 +1,13 @@
 ---
-import RobotabilityMap from '../components/custom/RobotabilityMap';
+// Map page. It renders the PMTiles + maplibre core (MapCanvas).
+// The legacy map component (RobotabilityMap.jsx) is not imported here.
+import MapCanvas from '../components/map/MapCanvas';
 import Layout from '../layouts/Map.astro';
 ---
 
-<Layout title="Web Map: Robotability Score">
-    <RobotabilityMap client:only="react" />
+<Layout
+  title="Web Map: Robotability Score"
+  description="Interactive map of Robotability scores for New York City sidewalks. Tiles load from PMTiles snapshots."
+>
+  <MapCanvas client:only="react" />
 </Layout>

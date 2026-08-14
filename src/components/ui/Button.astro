@@ -1,0 +1,71 @@
+---
+/**
+ * Button — site button.
+ * The styles match .project-button on the reference site.
+ * The component renders an anchor when href is set.
+ * Otherwise it renders a button element.
+ */
+interface Props {
+  /** Link target. Renders an anchor when set. */
+  href?: string;
+  /** Open the link in a new tab. */
+  external?: boolean;
+  /** Button type. Used only when href is absent. */
+  type?: 'button' | 'submit';
+  /** Optional id attribute. */
+  id?: string;
+  /** Extra classes. */
+  class?: string;
+}
+
+const {
+  href,
+  external = false,
+  type = 'button',
+  id,
+  class: className,
+} = Astro.props;
+
+const Tag = href ? 'a' : 'button';
+const actionProps = href
+  ? { href, ...(external ? { target: '_blank', rel: 'noopener noreferrer' } : {}) }
+  : { type };
+---
+
+<Tag id={id} class:list={['project-button', className]} {...actionProps}>
+  <slot />
+</Tag>
+
+<style>
+  .project-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 48px;
+    padding: 0.25rem 0.5rem;
+    font-family: var(--font-body);
+    font-size: 0.75rem;
+    line-height: 1rem;
+    font-weight: 700;
+    color: rgb(var(--color-text-base));
+    text-decoration: none;
+    background-color: rgb(var(--color-fill) / 0.7);
+    border: 1px solid rgb(var(--color-border));
+    border-radius: 0.25rem;
+    cursor: pointer;
+    transition:
+      border-color 0.24s cubic-bezier(0.45, 0, 0.2, 1),
+      background-color 0.24s cubic-bezier(0.45, 0, 0.2, 1),
+      color 0.24s cubic-bezier(0.45, 0, 0.2, 1),
+      box-shadow 0.24s cubic-bezier(0.45, 0, 0.2, 1),
+      transform 0.24s cubic-bezier(0.45, 0, 0.2, 1);
+  }
+
+  .project-button:hover {
+    background-color: rgb(var(--color-card));
+    color: rgb(var(--color-text-base));
+    border-color: rgb(var(--color-text-base));
+    box-shadow: 0 1px 8px rgba(0, 0, 0, 0.22);
+    transform: translateY(-1px);
+  }
+</style>

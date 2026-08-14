@@ -1,0 +1,381 @@
+/*
+ * HoverReveal (satellite marginalia) styles.
+ * Copied from the personal-site reference
+ * (personal_site_for_design_inspo/src/styles/base.css).
+ * The animation curves and shapes are unchanged.
+ * The component is src/components/ui/HoverReveal.astro.
+ */
+/* ===== Hover Reveal (Marginalia) ===== */
+.hover-reveal {
+  --reveal-ease: cubic-bezier(0.16, 1, 0.3, 1);
+  --reveal-ease-back: cubic-bezier(0.34, 1.4, 0.64, 1);
+  /* --reveal-size, --reveal-dx-base, --reveal-dy-base, --reveal-dist are
+     all set inline via the component's style attribute. They live as
+     inline styles because the CSS minifier strips rules that only set
+     custom properties. */
+  --reveal-dx: calc(var(--reveal-dx-base) * var(--reveal-dist));
+  --reveal-dy: calc(var(--reveal-dy-base) * var(--reveal-dist));
+  --reveal-rotate: -0.8deg;
+  position: relative;
+  display: inline;
+}
+
+/* Anchor word — dotted underline in accent */
+.hover-reveal__word {
+  position: relative;
+  background-image: linear-gradient(
+    to right,
+    rgba(var(--color-accent), 0.55) 50%,
+    transparent 50%
+  );
+  background-size: 4px 1px;
+  background-repeat: repeat-x;
+  background-position: 0 100%;
+  padding-bottom: 0.12em;
+  transition: color 0.24s var(--reveal-ease), background-image 0.24s var(--reveal-ease);
+  outline: none;
+}
+
+.hover-reveal__word:hover,
+.hover-reveal:focus-within .hover-reveal__word,
+.hover-reveal.is-tapped .hover-reveal__word {
+  color: rgb(var(--color-accent));
+  background-image: linear-gradient(
+    to right,
+    rgba(var(--color-accent), 0.9),
+    rgba(var(--color-accent), 0.9)
+  );
+}
+
+.hover-reveal__word:focus-visible {
+  outline: 2px dashed rgba(var(--color-accent), 0.55);
+  outline-offset: 3px;
+  border-radius: 1px;
+}
+
+/* Tether — SVG curve from anchor to card */
+.hover-reveal__tether {
+  position: absolute;
+  width: var(--reveal-dx);
+  height: var(--reveal-dy);
+  overflow: visible;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.2s var(--reveal-ease);
+  z-index: 45;
+}
+
+.hover-reveal__tether path {
+  fill: none;
+  stroke: rgba(var(--color-accent), 0.55);
+  stroke-width: 1;
+  stroke-linecap: round;
+  stroke-dasharray: 100;
+  stroke-dashoffset: 100;
+  transition: stroke-dashoffset 0.42s var(--reveal-ease) 0.08s;
+}
+
+/* Card — the floating annotation */
+.hover-reveal__card {
+  position: absolute;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--reveal-size);
+  height: var(--reveal-size);
+  background: rgb(var(--color-fill));
+  border: 1px solid rgb(var(--color-border));
+  box-shadow: 0 0 0 rgba(0, 0, 0, 0);
+  opacity: 0;
+  transform: translateY(8px) scale(0.78) rotate(-2deg);
+  transform-origin: 20% 80%;
+  pointer-events: none;
+  z-index: 50;
+  text-decoration: none;
+  color: inherit;
+  transition:
+    opacity 0.28s var(--reveal-ease),
+    transform 0.42s var(--reveal-ease-back),
+    box-shadow 0.42s var(--reveal-ease);
+}
+
+.hover-reveal--circle .hover-reveal__card {
+  border-radius: 999px;
+  overflow: hidden;
+  padding: 0;
+}
+
+/* Rect shape — edge-to-edge landscape image */
+.hover-reveal--rect .hover-reveal__card {
+  border-radius: 2px;
+  width: calc(var(--reveal-size) * 1.5);
+  height: calc(var(--reveal-size) * 1);
+  padding: 0;
+  background: transparent;
+  border: none;
+  overflow: hidden;
+}
+
+/* Portrait shape — edge-to-edge book-cover / poster image */
+.hover-reveal--portrait .hover-reveal__card {
+  border-radius: 2px;
+  width: calc(var(--reveal-size) * 0.72);
+  height: calc(var(--reveal-size) * 1.1);
+  padding: 0;
+  background: transparent;
+  border: none;
+  overflow: hidden;
+}
+
+.hover-reveal__card img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  user-select: none;
+  border-radius: inherit;
+}
+
+.hover-reveal__card--logo {
+  background: rgb(var(--color-fill));
+}
+.hover-reveal__card--logo img.is-logo {
+  object-fit: contain;
+  padding: 18%;
+}
+
+/* Text card. The width is fixed so the absolutely positioned card
+   never collapses to its minimum content width. The height follows
+   the wrapped text. Placement reads both through offsetWidth and
+   offsetHeight in the component script. */
+.hover-reveal__card--text {
+  display: block;
+  border-radius: 2px;
+  width: 220px;
+  max-width: calc(100vw - 24px);
+  height: auto;
+  padding: 0.8rem 1rem;
+  font-family: var(--font-body);
+  font-size: 0.8rem;
+  line-height: 1.5;
+  letter-spacing: 0.005em;
+  text-align: left;
+  color: rgb(var(--color-text-base));
+}
+
+/* Invisible bridge so cursor can travel from word to card
+   without crossing an un-hovered gap. */
+.hover-reveal__card::before {
+  content: "";
+  position: absolute;
+  inset: -18px;
+  /* When open, bridge extends back toward the anchor. */
+  pointer-events: none;
+  z-index: -1;
+}
+
+/* Placement offsets — tether fills the dx/dy rectangle between word and card.
+   .hover-reveal is inline wrapping the word, so 100% = word edge. */
+.hover-reveal--top-right .hover-reveal__tether {
+  left: 100%;
+  bottom: 0.1em;
+}
+.hover-reveal--top-right .hover-reveal__card {
+  left: calc(100% + var(--reveal-dx) - 6px);
+  bottom: calc(var(--reveal-dy) + 0.1em - 6px);
+}
+
+.hover-reveal--top-left .hover-reveal__tether {
+  right: 100%;
+  bottom: 0.1em;
+}
+.hover-reveal--top-left .hover-reveal__card {
+  right: calc(100% + var(--reveal-dx) - 6px);
+  bottom: calc(var(--reveal-dy) + 0.1em - 6px);
+  transform-origin: 80% 80%;
+  transform: translateY(8px) scale(0.78) rotate(2deg);
+}
+
+.hover-reveal--bottom-right .hover-reveal__tether {
+  left: 100%;
+  top: 0.8em;
+}
+.hover-reveal--bottom-right .hover-reveal__card {
+  left: calc(100% + var(--reveal-dx) - 6px);
+  top: calc(var(--reveal-dy) + 0.8em - 6px);
+  transform-origin: 20% 20%;
+}
+
+.hover-reveal--bottom-left .hover-reveal__tether {
+  right: 100%;
+  top: 0.8em;
+}
+.hover-reveal--bottom-left .hover-reveal__card {
+  right: calc(100% + var(--reveal-dx) - 6px);
+  top: calc(var(--reveal-dy) + 0.8em - 6px);
+  transform-origin: 80% 20%;
+  transform: translateY(8px) scale(0.78) rotate(2deg);
+}
+
+/* Open state — triggered by hovering word, card, tether, keyboard focus,
+   or (on touch) an `.is-tapped` class added by the component's script. */
+.hover-reveal:hover .hover-reveal__tether,
+.hover-reveal:focus-within .hover-reveal__tether,
+.hover-reveal.is-tapped .hover-reveal__tether {
+  opacity: 1;
+}
+
+.hover-reveal:hover .hover-reveal__tether path,
+.hover-reveal:focus-within .hover-reveal__tether path,
+.hover-reveal.is-tapped .hover-reveal__tether path {
+  stroke-dashoffset: 0;
+}
+
+.hover-reveal:hover .hover-reveal__card,
+.hover-reveal:focus-within .hover-reveal__card,
+.hover-reveal.is-tapped .hover-reveal__card {
+  opacity: 1;
+  transform: translateY(0) scale(1) rotate(var(--reveal-rotate));
+  box-shadow:
+    0 10px 28px -8px rgba(0, 0, 0, 0.22),
+    0 2px 6px -2px rgba(0, 0, 0, 0.1);
+  pointer-events: auto;
+}
+
+/* When the card is clamped to stay in-viewport, inline styles set
+   left/top directly. Override the placement-class positioning and
+   use a simpler transform (just scale + rotate, no translate). */
+.hover-reveal:hover .hover-reveal__card.is-clamped,
+.hover-reveal:focus-within .hover-reveal__card.is-clamped,
+.hover-reveal.is-tapped .hover-reveal__card.is-clamped {
+  transform: scale(1) rotate(var(--reveal-rotate));
+}
+
+/* Clamped: the script positions card + tether in *viewport*
+   coordinates (immune to the inline anchor's wrapped box), so they
+   must be fixed, not absolute-to-wrapper. */
+.hover-reveal.is-clamped .hover-reveal__card,
+.hover-reveal.is-clamped .hover-reveal__tether {
+  position: fixed;
+}
+
+/* When a clamped card is open, lift it above the fixed site header
+   (header bg is z-50, its logo/socials z-60). The card is already
+   kept out of the header band positionally — this is belt-and-braces
+   so nothing can occlude it mid-animation. */
+.hover-reveal.is-clamped:hover .hover-reveal__card,
+.hover-reveal.is-clamped:focus-within .hover-reveal__card,
+.hover-reveal.is-clamped.is-tapped .hover-reveal__card {
+  z-index: 70;
+}
+.hover-reveal.is-clamped:hover .hover-reveal__tether,
+.hover-reveal.is-clamped:focus-within .hover-reveal__tether,
+.hover-reveal.is-clamped.is-tapped .hover-reveal__tether {
+  z-index: 69;
+}
+
+/* Clickable card — subtle accent-ring lift on hover */
+a.hover-reveal__card:hover {
+  box-shadow:
+    0 14px 34px -8px rgba(0, 0, 0, 0.28),
+    0 0 0 2px rgba(var(--color-accent), 0.35),
+    0 2px 6px -2px rgba(0, 0, 0, 0.12);
+  transform: translateY(-2px) scale(1.02) rotate(var(--reveal-rotate));
+}
+
+/* The bridge becomes active when card is open, so hover doesn't drop.
+   inset order: top right bottom left. Bridge extends from card toward word. */
+.hover-reveal:hover .hover-reveal__card::before,
+.hover-reveal:focus-within .hover-reveal__card::before,
+.hover-reveal.is-tapped .hover-reveal__card::before {
+  pointer-events: auto;
+}
+/* top-right: word is below-left of card → extend down-left */
+.hover-reveal--top-right:hover .hover-reveal__card::before,
+.hover-reveal--top-right:focus-within .hover-reveal__card::before,
+.hover-reveal--top-right.is-tapped .hover-reveal__card::before {
+  inset: -20px -20px calc(var(--reveal-dy) * -1 - 20px) calc(var(--reveal-dx) * -1 - 20px);
+}
+/* top-left: word is below-right of card → extend down-right */
+.hover-reveal--top-left:hover .hover-reveal__card::before,
+.hover-reveal--top-left:focus-within .hover-reveal__card::before,
+.hover-reveal--top-left.is-tapped .hover-reveal__card::before {
+  inset: -20px calc(var(--reveal-dx) * -1 - 20px) calc(var(--reveal-dy) * -1 - 20px) -20px;
+}
+/* bottom-right: word is above-left of card → extend up-left */
+.hover-reveal--bottom-right:hover .hover-reveal__card::before,
+.hover-reveal--bottom-right:focus-within .hover-reveal__card::before,
+.hover-reveal--bottom-right.is-tapped .hover-reveal__card::before {
+  inset: calc(var(--reveal-dy) * -1 - 20px) -20px -20px calc(var(--reveal-dx) * -1 - 20px);
+}
+/* bottom-left: word is above-right of card → extend up-right */
+.hover-reveal--bottom-left:hover .hover-reveal__card::before,
+.hover-reveal--bottom-left:focus-within .hover-reveal__card::before,
+.hover-reveal--bottom-left.is-tapped .hover-reveal__card::before {
+  inset: calc(var(--reveal-dy) * -1 - 20px) calc(var(--reveal-dx) * -1 - 20px) -20px -20px;
+}
+
+/* On small screens, scale satellites to fit the viewport while
+   staying large enough to be legible and feel substantial. */
+@media (max-width: 640px) {
+  .hover-reveal {
+    --reveal-size: 108px !important;
+    --reveal-dx-base: 56px !important;
+    --reveal-dy-base: 68px !important;
+    --reveal-dist: 1 !important;
+  }
+}
+
+/* Touch device adjustments */
+@media (hover: none) and (pointer: coarse) {
+  .hover-reveal__word {
+    cursor: pointer;
+    -webkit-tap-highlight-color: rgba(var(--color-accent), 0.18);
+    touch-action: manipulation;
+  }
+  .project-card {
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+  }
+  /* On touch devices the script manages satellite visibility via the
+     .is-tapped class with a 3-second auto-close timer. Disable the
+     :focus-within path so it can't fight with the timer and keep cards
+     visible after is-tapped is removed. */
+  .hover-reveal:focus-within:not(.is-tapped) .hover-reveal__tether {
+    opacity: 0;
+  }
+  .hover-reveal:focus-within:not(.is-tapped) .hover-reveal__tether path {
+    stroke-dashoffset: 100;
+  }
+  .hover-reveal:focus-within:not(.is-tapped) .hover-reveal__card {
+    opacity: 0;
+    transform: translateY(8px) scale(0.78) rotate(-2deg);
+    pointer-events: none;
+    box-shadow: 0 0 0 rgba(0, 0, 0, 0);
+  }
+  .hover-reveal:focus-within:not(.is-tapped) .hover-reveal__card::before {
+    pointer-events: none;
+  }
+  .hover-reveal:focus-within:not(.is-tapped) .hover-reveal__word {
+    color: inherit;
+    background-image: linear-gradient(
+      to right,
+      rgba(var(--color-accent), 0.55) 50%,
+      transparent 50%
+    );
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hover-reveal__card,
+  .hover-reveal__tether,
+  .hover-reveal__tether path,
+  .hover-reveal__word {
+    transition: opacity 0.15s linear !important;
+  }
+  .hover-reveal:hover .hover-reveal__card,
+  .hover-reveal:focus-within .hover-reveal__card {
+    transform: rotate(var(--reveal-rotate));
+  }
+}

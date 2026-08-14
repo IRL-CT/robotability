@@ -1,0 +1,29 @@
+---
+/**
+ * Card — sharp-corner content card.
+ * The corners stay square. The border is 1px wide and uses the
+ * border token at 0.55 opacity.
+ */
+interface Props {
+  /** Optional id attribute. */
+  id?: string;
+  /** Extra classes for the wrapper. */
+  class?: string;
+}
+
+const { id, class: className } = Astro.props;
+---
+
+<div id={id} class:list={['ui-card', className]}>
+  <slot />
+</div>
+
+<style>
+  .ui-card {
+    border-radius: 0;
+    border: 1px solid rgb(var(--color-border) / 0.55);
+    background: transparent;
+    padding: 1.5rem;
+    transition: var(--theme-transition);
+  }
+</style>

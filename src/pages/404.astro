@@ -1,17 +1,34 @@
 ---
-import RecentBlogPosts from '@components/generic/RecentBlogPosts.astro';
+/**
+ * 404 page.
+ * The route stays src/pages/404.astro. The design uses the T2
+ * components. The Default layout provides the site nav and footer.
+ */
 import Layout from '@layouts/Default.astro';
-import ErrorPage from '@components/errors/404.astro';
+import SectionHeading from '@components/ui/SectionHeading.astro';
+import Card from '@components/ui/Card.astro';
+import Button from '@components/ui/Button.astro';
+import DashedLink from '@components/ui/DashedLink.astro';
 ---
 
 <Layout
-  title='Page Not Found'
-  description='Page not found'
+  title='Page Not Found | Robotability'
+  description='The page you requested does not exist.'
   classList='h-full'
-  pageTitle='Page Not Found!'
 >
-  <main class='bg-blue px-6 py-24'>
-    <ErrorPage />
-    <RecentBlogPosts />
+  <main class='mx-auto w-full max-w-4xl px-6 py-16'>
+    <p class='text-7xl font-bold text-skin-base'>404</p>
+    <SectionHeading>Page not found</SectionHeading>
+    <Card>
+      <p class='text-skin-base'>
+        The page you requested does not exist. It may have moved, or it may
+        have been removed.
+      </p>
+    </Card>
+    <div class='mt-8 flex flex-wrap items-center gap-4'>
+      <Button href='/'>Go home</Button>
+      <Button href='/map'>Open the map</Button>
+      <DashedLink href='/methodology'>Read the methodology</DashedLink>
+    </div>
   </main>
 </Layout>

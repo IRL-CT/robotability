@@ -1,5 +1,5 @@
 ---
-import { Card } from '@eliancodes/brutal-ui';
+import Card from '../ui/Card.astro';
 import { Image } from 'astro:assets';
 
 interface Props {
@@ -12,7 +12,7 @@ interface Props {
 const { title, imgAlt, imgSrc, description } = Astro.props;
 ---
 
-<Card color='white'>
+<Card>
   <h3 class='poppins text-lg md:text-xl'>{title}</h3>
   <div class='rounded-lg border-3 border-black my-4 h-56'>
     <Image
