@@ -1,0 +1,35 @@
+# Dependencies
+node_modules/
+
+# Build output. CI builds the site in deploy.yml. Do not track dist/.
+dist/
+.astro/
+
+# Test artifacts
+test-results/
+playwright-report/
+.playwright-mcp/
+
+# Python bytecode
+__pycache__/
+*.pyc
+.venv/
+
+# Agent and tooling state
+.omo/
+.codegraph
+
+# Local reference clones. Each holds its own git repo.
+manuscript/
+personal_site_for_design_inspo/
+robotability-nyc/
+
+# Orphan design asset with no reference in the code.
+kf-light.png
+
+# OS files
+.DS_Store
+
+# Environment. Never commit tokens.
+.env
+.env.*
