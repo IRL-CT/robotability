@@ -1,0 +1,104 @@
+{
+  "date": "2026-08-14",
+  "row_count": 50865,
+  "score_min": 0.07033484429121017,
+  "score_max": 0.26492953300476074,
+  "feature_stats": {
+    "sidewalk_width": {
+      "min": 0.0,
+      "max": 1.0
+    },
+    "pedestrian_density": {
+      "min": 0.0,
+      "max": 0.0
+    },
+    "street_furniture_density": {
+      "min": 0.0,
+      "max": 0.0
+    },
+    "sidewalk_roughness": {
+      "min": 1.0,
+      "max": 1.0
+    },
+    "surface_condition": {
+      "min": 0.0,
+      "max": 1.0
+    },
+    "communication_infrastructure": {
+      "min": 0.0,
+      "max": 0.0
+    },
+    "slope_gradient": {
+      "min": 0.0,
+      "max": 0.0
+    },
+    "charging_station_proximity": {
+      "min": 0.0,
+      "max": 1.0
+    },
+    "curb_ramp_availability": {
+      "min": 0.0,
+      "max": 1.0
+    },
+    "crowd_dynamics": {
+      "min": 0.0,
+      "max": 0.0
+    },
+    "traffic_management": {
+      "min": 0.0,
+      "max": 0.0
+    },
+    "surveillance_coverage": {
+      "min": 0.0,
+      "max": 0.0
+    },
+    "zoning_laws": {
+      "min": 0.0,
+      "max": 1.0
+    },
+    "bike_lane_availability": {
+      "min": 0.0,
+      "max": 1.0
+    },
+    "gps_signal_strength": {
+      "min": 1.0,
+      "max": 1.0
+    },
+    "bicycle_traffic": {
+      "min": 0.0,
+      "max": 0.0
+    },
+    "vehicle_traffic": {
+      "min": 0.0,
+      "max": 0.0
+    },
+    "digital_map_existence": {
+      "min": 1.0,
+      "max": 1.0
+    },
+    "intersection_safety": {
+      "min": 0.0,
+      "max": 1.0
+    }
+  },
+  "weights_sha256": "6278272614fe5e012874a2804e9e576f21f5a9cd4b952eb9296ccb6932965beb",
+  "partial": true,
+  "feature_vectors": true,
+  "files": [
+    {
+      "name": "segments.geojson",
+      "sha256": "8c830aae615743bb11d98202bf327dc6ccf3c00140089a2dc76efa61a49c871e",
+      "bytes": 12984168
+    },
+    {
+      "name": "segments.pmtiles",
+      "sha256": "7ea1d41259b7eba978c7b5b9a566430d85e0c67e4341856be3db2e661bd923e4",
+      "bytes": 8783363
+    },
+    {
+      "name": "features.parquet",
+      "sha256": "4cd49025c9f9386be7ff770eb4f0c78622ccc2973c00aefedfaa0a4a7160fb6b",
+      "bytes": 1355964
+    }
+  ]
+}

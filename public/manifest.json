@@ -9,6 +9,95 @@
         "census": "/snapshots/2023-08-01/census.pmtiles",
         "manifest": "/snapshots/2023-08-01/manifest.json"
       }
+    },
+    {
+      "date": "2026-08-14",
+      "tag": "citywide-local-smoke",
+      "feature_vectors": true,
+      "urls": {
+        "segments": "/snapshots/2026-08-14/segments.pmtiles",
+        "parquet": "/snapshots/2026-08-14/features.parquet",
+        "census": "/snapshots/2023-08-01/census.pmtiles",
+        "manifest": "/snapshots/2026-08-14/manifest.json"
+      },
+      "feature_stats": {
+        "sidewalk_width": {
+          "min": 0.0,
+          "max": 1.0
+        },
+        "pedestrian_density": {
+          "min": 0.0,
+          "max": 0.0
+        },
+        "street_furniture_density": {
+          "min": 0.0,
+          "max": 0.0
+        },
+        "sidewalk_roughness": {
+          "min": 1.0,
+          "max": 1.0
+        },
+        "surface_condition": {
+          "min": 0.0,
+          "max": 1.0
+        },
+        "communication_infrastructure": {
+          "min": 0.0,
+          "max": 0.0
+        },
+        "slope_gradient": {
+          "min": 0.0,
+          "max": 0.0
+        },
+        "charging_station_proximity": {
+          "min": 0.0,
+          "max": 1.0
+        },
+        "curb_ramp_availability": {
+          "min": 0.0,
+          "max": 1.0
+        },
+        "crowd_dynamics": {
+          "min": 0.0,
+          "max": 0.0
+        },
+        "traffic_management": {
+          "min": 0.0,
+          "max": 0.0
+        },
+        "surveillance_coverage": {
+          "min": 0.0,
+          "max": 0.0
+        },
+        "zoning_laws": {
+          "min": 0.0,
+          "max": 1.0
+        },
+        "bike_lane_availability": {
+          "min": 0.0,
+          "max": 1.0
+        },
+        "gps_signal_strength": {
+          "min": 1.0,
+          "max": 1.0
+        },
+        "bicycle_traffic": {
+          "min": 0.0,
+          "max": 0.0
+        },
+        "vehicle_traffic": {
+          "min": 0.0,
+          "max": 0.0
+        },
+        "digital_map_existence": {
+          "min": 1.0,
+          "max": 1.0
+        },
+        "intersection_safety": {
+          "min": 0.0,
+          "max": 1.0
+        }
+      }
     }
   ]
 }

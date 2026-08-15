@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Cron entry for the Robotability cluster pipeline.
-# Runs the four stages in order: fetch, build, score, emit.
+# Runs the five stages in order: fetch, segment, build, score, emit.
 # The emit stage runs the contract validator and gates on its EXIT CODE.
 # A failed validator exit code fails this run. Printed text is not the gate.
 #
@@ -75,7 +75,13 @@ if [ "$MOCK" -eq 1 ]; then
 fi
 "$PYTHON" "$SCRIPT_DIR/fetch_public.py" "${FETCH_ARGS[@]}"
 
-# Stage 2: build the raw feature table.
+# Stage 2: segment the sidewalk basemap into centerlines. Mock mode
+# generates its own segments, so it skips this stage.
+if [ "$MOCK" -eq 0 ]; then
+  "$PYTHON" "$SCRIPT_DIR/segment_basemap.py" --work "$WORK"
+fi
+
+# Stage 3: build the raw feature table.
 BUILD_ARGS=(--work "$WORK"
             --out "$WORK/features_raw.parquet"
             --report "$WORK/build_report.json")
@@ -86,12 +92,12 @@ BUILD_ARGS=(--work "$WORK"
 [ -n "$SEED" ] && BUILD_ARGS+=(--seed "$SEED")
 "$PYTHON" "$SCRIPT_DIR/build_features.py" "${BUILD_ARGS[@]}"
 
-# Stage 3: normalize, weight, and score.
+# Stage 4: normalize, weight, and score.
 "$PYTHON" "$SCRIPT_DIR/compute_score.py" \
   --in "$WORK/features_raw.parquet" \
   --out "$WORK/features_scored.parquet"
 
-# Stage 4: emit the artifacts and run the contract validator.
+# Stage 5: emit the artifacts and run the contract validator.
 # The validator exit code is the gate. See emit_artifacts.run_validator.
 EMIT_ARGS=(--in "$WORK/features_scored.parquet"
            --report "$WORK/build_report.json"

@@ -12,7 +12,7 @@ The pipeline computes one snapshot per run. It writes four artifacts:
 The cluster node needs:
 
 - Python 3.9 or newer with `pyarrow`, `geopandas`, `pandas`, `shapely`,
-  `pyyaml`. Real runs also need `rasterio` for the DEM.
+  `pyyaml`, `centerline`. Real runs also need `rasterio` for the DEM.
 - Node.js 18 or newer (the contract validator).
 - `tippecanoe` for the PMTiles build.
 - A checkout of this repository on the `site-2026` branch or newer.

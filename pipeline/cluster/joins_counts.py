@@ -6,6 +6,7 @@ Every join returns a list aligned to the segment rows. A missing input file
 returns None. build_features.py records the gap and fills it with zeros.
 """
 
+import json
 import os
 from typing import List, Optional
 
@@ -51,7 +52,7 @@ def join_traffic_management(segments, work_dir: str) -> Optional[dict]:
         path = os.path.join(work_dir, rel)
         if not os.path.isfile(path):
             return None
-        points = _points_from_csv(path, 'the_geom', True)
+        points = _points_from_spec(path, 'wkt', 'the_geom', '', '')
         out[col] = _buffered_counts(segments, points, BUFFER_50_FT)
     return out
 
@@ -70,6 +71,8 @@ def join_speed_limits(segments, speed_limits_path: str) -> Optional[List[float]]
     if not os.path.isfile(speed_limits_path):
         return None
     limits = pd.read_csv(speed_limits_path)
+    # Rows without a geometry cannot join. Drop them before the parse.
+    limits = limits.dropna(subset=['the_geom'])
     limits = gpd.GeoDataFrame(
         limits, geometry=limits['the_geom'].apply(wkt.loads), crs=pc.CRS_WGS,
     ).to_crs(pc.CRS_PROJ)

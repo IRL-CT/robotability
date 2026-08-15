@@ -57,36 +57,41 @@ FURNITURE_SPECS = {
 
 
 def load_segments(work_dir: str, bbox: Optional[tuple]):
-    """Load the sidewalk basemap. Port of dataset.ipynb cell 12.
+    """Load the segmented sidewalk basemap.
 
-    The alternate generation method reads the sidewalks CSV (52n9-sdep),
-    derives the width as SHAPE_Area / SHAPE_Leng, and simplifies each
-    geometry. segment_index is the row index, as in the notebook.
+    segment_basemap.py ports the research centerline step
+    (sidewalk_widths.py) and writes data/sidewalk_segments.parquet.
+    Each row is one LineString segment with its width in feet. The
+    segment id is the row index, as in dataset.ipynb.
     """
     import geopandas as gpd
     import pandas as pd
     from shapely import box, wkt
 
-    path = os.path.join(work_dir, 'data/sidewalks_nyc.csv')
+    path = os.path.join(work_dir, 'data/sidewalk_segments.parquet')
     if not os.path.isfile(path):
-        pc.die(f'sidewalk basemap missing: {path}. Run fetch_public.py first.')
-    sidewalks = pd.read_csv(path)
-    sidewalks = gpd.GeoDataFrame(
-        sidewalks, geometry=sidewalks['the_geom'].apply(wkt.loads), crs=pc.CRS_WGS,
+        pc.die(f'segmented basemap missing: {path}. '
+               'Run segment_basemap.py first.')
+    import pyarrow.parquet as pq
+
+    table = pq.read_table(path)
+    segments = pd.DataFrame({
+        'geometry_wkt': table.column('geometry_wkt').to_pylist(),
+        'width': [float(v) for v in table.column('width').to_pylist()],
+    })
+    segments = gpd.GeoDataFrame(
+        segments, geometry=segments['geometry_wkt'].apply(wkt.loads),
+        crs=pc.CRS_WGS,
     ).to_crs(pc.CRS_PROJ)
-    sidewalks['segment_index'] = sidewalks.index
-    drop = [c for c in ('SUB_CODE', 'FEAT_CODE', 'STATUS', 'the_geom') if c in sidewalks.columns]
-    sidewalks = sidewalks.drop(columns=drop)
-    sidewalks['SHAPE_Width'] = sidewalks['SHAPE_Area'] / sidewalks['SHAPE_Leng']
-    sidewalks['width'] = sidewalks['SHAPE_Width']
-    sidewalks['geometry'] = sidewalks['geometry'].simplify(10)
+    segments['segment_index'] = segments.index
+    segments = segments.drop(columns=['geometry_wkt'])
     if bbox is not None:
         minlon, minlat, maxlon, maxlat = bbox
         clip_box = gpd.GeoDataFrame(
             geometry=[box(minlon, minlat, maxlon, maxlat)], crs=pc.CRS_WGS,
         ).to_crs(pc.CRS_PROJ)
-        sidewalks = sidewalks[sidewalks.intersects(clip_box.geometry.iloc[0])]
-    return sidewalks.reset_index(drop=True)
+        segments = segments[segments.intersects(clip_box.geometry.iloc[0])]
+    return segments.reset_index(drop=True)
 
 
 def _points_from_spec(path: str, kind: str, geom_col: str, lon_col: str, lat_col: str):
