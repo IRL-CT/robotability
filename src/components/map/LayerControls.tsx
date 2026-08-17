@@ -1,17 +1,29 @@
 // LayerControls shows the layer toggles and the score legend over the map.
 // The toggles switch layer visibility through maplibre setLayoutProperty.
 // The legend draws the 11 ramp colors from low to high percentile.
-import { SCORE_COLORS } from './constants';
+import { NO_DATA_COLOR, SCORE_COLORS } from './constants';
+import { WEIGHTS } from './breakdownData';
 
 // The three toggleable layers. The keys match the maplibre layer ids.
 export type ToggleableLayer = 'segments' | 'census' | 'deployments';
 
 export type LayerVisibility = Record<ToggleableLayer, boolean>;
 
+// What the segments layer draws. 'score' is the composite Robotability
+// score; any other value is one feature name from weights.json.
+export const SCORE_LAYER = 'score';
+
 type LayerControlsProps = {
   readonly visibility: LayerVisibility;
   readonly censusAvailable: boolean;
   readonly onToggle: (layer: ToggleableLayer) => void;
+  // The active colour source: SCORE_LAYER or a feature name.
+  readonly colorBy: string;
+  readonly onColorByChange: (value: string) => void;
+  // Set while the feature table is downloading and parsing.
+  readonly featureLoading: boolean;
+  // Why a feature layer is unavailable, or null when it is available.
+  readonly featureDisabledReason: string | null;
 };
 
 // One toggle row. The label names the layer. The checkbox shows the
@@ -44,7 +56,16 @@ function ToggleRow(props: {
 }
 
 export default function LayerControls(props: LayerControlsProps) {
-  const { visibility, censusAvailable, onToggle } = props;
+  const {
+    visibility,
+    censusAvailable,
+    onToggle,
+    colorBy,
+    onColorByChange,
+    featureLoading,
+    featureDisabledReason,
+  } = props;
+  const isScore = colorBy === SCORE_LAYER;
   return (
     <div
       data-testid="layer-controls"
@@ -84,14 +105,53 @@ export default function LayerControls(props: LayerControlsProps) {
         />
       </div>
 
+      <div style={{ fontWeight: 700, marginTop: '0.75rem', marginBottom: '0.35rem' }}>
+        Colour by
+      </div>
+      <select
+        data-testid="color-by"
+        value={colorBy}
+        disabled={featureDisabledReason !== null}
+        onChange={(event) => onColorByChange(event.target.value)}
+        style={{
+          width: '100%',
+          padding: '0.25rem',
+          fontSize: '0.85rem',
+          backgroundColor: 'rgb(var(--color-fill))',
+          color: 'rgb(var(--color-text-base))',
+          border: '1px solid rgb(var(--color-border))',
+        }}
+      >
+        <option value={SCORE_LAYER}>Robotability score</option>
+        {WEIGHTS.map((w) => (
+          <option key={w.feature} value={w.feature}>
+            {w.displayName}
+          </option>
+        ))}
+      </select>
+      {featureDisabledReason !== null && (
+        <div data-testid="color-by-disabled" style={{ marginTop: '0.3rem', opacity: 0.75 }}>
+          {featureDisabledReason}
+        </div>
+      )}
+      {featureLoading && (
+        <div data-testid="color-by-loading" style={{ marginTop: '0.3rem', opacity: 0.75 }}>
+          Loading feature values...
+        </div>
+      )}
+
       <div style={{ fontWeight: 700, marginTop: '0.75rem', marginBottom: '0.5rem' }}>
-        Score percentile
+        {isScore ? 'Score percentile' : 'Feature value'}
       </div>
       <div data-testid="score-legend">
         {SCORE_COLORS.map((color, index) => {
-          // Stop 0 is the lowest percentile. Stop 10 is the highest.
-          // The 11 stops divide the domain into 10 equal steps.
-          const percentile = Math.round((index / (SCORE_COLORS.length - 1)) * 100);
+          // For the score the stops are deciles, so the label is a
+          // percentile. For a feature the ramp is linear over the
+          // normalized [0, 1] range, so the label is the value itself.
+          const fraction = index / (SCORE_COLORS.length - 1);
+          const percentile = isScore
+            ? `${Math.round(fraction * 100)}%`
+            : fraction.toFixed(1);
           return (
             <div
               key={percentile}
@@ -107,7 +167,7 @@ export default function LayerControls(props: LayerControlsProps) {
                   border: '1px solid rgb(var(--color-border))',
                 }}
               />
-              <span>{percentile}%</span>
+              <span>{percentile}</span>
             </div>
           );
         })}
@@ -116,6 +176,23 @@ export default function LayerControls(props: LayerControlsProps) {
         <span>Low</span>
         <span>High</span>
       </div>
+      {!isScore && (
+        <div
+          data-testid="no-data-key"
+          style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', marginTop: '0.4rem' }}
+        >
+          <span
+            style={{
+              display: 'inline-block',
+              width: '1.4rem',
+              height: '0.7rem',
+              backgroundColor: NO_DATA_COLOR,
+              border: '1px solid rgb(var(--color-border))',
+            }}
+          />
+          <span>No value</span>
+        </div>
+      )}
     </div>
   );
 }

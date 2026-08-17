@@ -16,18 +16,25 @@ import 'maplibre-gl/dist/maplibre-gl.css';
 import BreakdownPanel from './BreakdownPanel';
 import {
   defaultScoreBreaks,
+  featureBreaks,
+  featureRampExpression,
   parseScoreBreaks,
   scoreRampExpression,
   scoreToPercent as scorePercentOnRamp,
   type DeploymentSite,
 } from './constants';
+import { loadFeatureRows } from './breakdownData';
 import {
   DEPLOYMENTS_LAYER_ID,
   deploymentEmbedUrl,
   deploymentLayerEntry,
   refreshDeploymentPaint,
 } from './DeploymentMarkers';
-import LayerControls, { type LayerVisibility, type ToggleableLayer } from './LayerControls';
+import LayerControls, {
+  SCORE_LAYER,
+  type LayerVisibility,
+  type ToggleableLayer,
+} from './LayerControls';
 import TimePanel from './TimePanel';
 import { type RegisteredLayer, type SnapshotEntry, type SnapshotFeatureStatsEntry } from './types';
 
@@ -59,6 +66,11 @@ const INITIAL_BEARING = 0;
 
 // The segments archive stores tiles for zooms 9-14. The census archive
 // stores tiles for zooms 4-14. See scripts/tiles/build_pmtiles.mjs.
+// How many feature-state writes to do before yielding to the event loop.
+// The full city is about 492k segments; one unbroken pass freezes pan
+// and zoom for seconds.
+const FEATURE_STATE_CHUNK = 20000;
+
 const SEGMENTS_SOURCE_MINZOOM = 9;
 const SEGMENTS_SOURCE_MAXZOOM = 14;
 const CENSUS_SOURCE_MINZOOM = 4;
@@ -369,6 +381,15 @@ export default function MapCanvas() {
   // The map instance as state. The TimePanel mounts only after the map
   // exists, so its effects always see a live map.
   const [mapInstance, setMapInstance] = useState<MapLibreMap | null>(null);
+  // What the segments layer draws: SCORE_LAYER or one feature name.
+  const [colorBy, setColorBy] = useState<string>(SCORE_LAYER);
+  const [featureLoading, setFeatureLoading] = useState(false);
+  // How many segments currently carry feature state. Diagnostic only;
+  // the clear is a single bulk call.
+  const featureStateCountRef = useRef<number>(0);
+  // The active colour source, for the tooltip. Bound once, like the
+  // breaks ref above.
+  const colorByRef = useRef<string>(SCORE_LAYER);
 
   // Switch the active snapshot by manifest date. The TimePanel scrubber
   // and the window hook share this path.
@@ -384,6 +405,100 @@ export default function MapCanvas() {
   const getMapInstance = useCallback((): MapLibreMap | null => {
     return mapRef.current;
   }, []);
+
+  // Repaint the segments layer whenever the colour source or the
+  // snapshot changes.
+  //
+  // The score comes from the tiles, so switching back to it is just a
+  // paint-property change. A feature does not: the tiles carry only id
+  // and score, so its values are read from features.parquet and pushed
+  // into feature state, one entry per segment. That table is the same
+  // one the breakdown panel loads and it is cached after the first read.
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !activeEntry) return;
+    let cancelled = false;
+
+    // One call clears the whole source layer. Removing 491k ids one at a
+    // time is slow enough to be visible, and nothing else on this source
+    // owns feature state.
+    const clearFeatureState = (): void => {
+      if (!map.getSource('segments-source')) return;
+      map.removeFeatureState({ source: 'segments-source', sourceLayer: 'segments' });
+      featureStateCountRef.current = 0;
+    };
+
+    const paint = (expression: unknown): void => {
+      if (!map.getLayer('segments')) return;
+      map.setPaintProperty('segments', 'line-color', expression as never);
+    };
+
+    colorByRef.current = colorBy;
+
+    if (colorBy === SCORE_LAYER) {
+      clearFeatureState();
+      paint(scoreColorExpression(activeEntry.score_breaks ?? defaultScoreBreaks()));
+      setFeatureLoading(false);
+      return;
+    }
+
+    const parquetUrl = activeEntry.urls.parquet ?? activeEntry.urls.features ?? null;
+    if (parquetUrl === null) return;
+
+    setFeatureLoading(true);
+    void (async (): Promise<void> => {
+      try {
+        const rows = await loadFeatureRows(parquetUrl, activeEntry.tag ?? activeEntry.date);
+        if (cancelled) return;
+        clearFeatureState();
+        // Paint first so tiles already on screen pick up state as it
+        // arrives, rather than staying on the score ramp until the last
+        // row lands.
+        paint(featureRampExpression(featureBreaks()));
+        // Write in chunks with a yield between them. Half a million
+        // setFeatureState calls in one pass blocks the main thread long
+        // enough to freeze panning and zooming.
+        let written = 0;
+        for (let i = 0; i < rows.length; i += FEATURE_STATE_CHUNK) {
+          if (cancelled) return;
+          const end = Math.min(i + FEATURE_STATE_CHUNK, rows.length);
+          for (let j = i; j < end; j += 1) {
+            const row = rows[j];
+            const id = row['segment_id'];
+            const value = row[colorBy];
+            if (typeof id !== 'number' || typeof value !== 'number' || !Number.isFinite(value)) {
+              continue;
+            }
+            map.setFeatureState(
+              { source: 'segments-source', sourceLayer: 'segments', id },
+              { featureValue: value },
+            );
+            written += 1;
+          }
+          if (end < rows.length) {
+            await new Promise((resolve) => setTimeout(resolve, 0));
+          }
+        }
+        if (cancelled) return;
+        featureStateCountRef.current = written;
+        if (written === 0) {
+          setError(`The snapshot carries no values for ${colorBy}.`);
+        }
+      } catch (err) {
+        if (cancelled) return;
+        const message = err instanceof Error ? err.message : String(err);
+        console.error('Feature layer load failed.', err);
+        setError(`The feature layer could not load: ${message}`);
+        setColorBy(SCORE_LAYER);
+      } finally {
+        if (!cancelled) setFeatureLoading(false);
+      }
+    })();
+
+    return (): void => {
+      cancelled = true;
+    };
+  }, [colorBy, activeEntry]);
 
   useEffect(() => {
     const container = containerRef.current;
@@ -450,6 +565,19 @@ export default function MapCanvas() {
       }
       const id: unknown = feature.properties['id'];
       const label = typeof id === 'number' ? String(id) : 'unknown';
+      // On a feature layer report that feature's value, which is what the
+      // colour shows. Reporting the score there would describe a
+      // different quantity from the one under the cursor.
+      const active = colorByRef.current;
+      if (active !== SCORE_LAYER) {
+        const stateValue = (feature.state as Record<string, unknown> | undefined)?.[
+          'featureValue'
+        ];
+        const shown =
+          typeof stateValue === 'number' ? stateValue.toFixed(4) : 'no value';
+        positionTooltip(event, `${active}: ${shown} | Segment ${label}`);
+        return;
+      }
       positionTooltip(
         event,
         `Score: ${scoreToPercent(score, scoreBreaksRef.current).toFixed(1)}% | Segment ${label}`,
@@ -490,6 +618,11 @@ export default function MapCanvas() {
               minzoom: SEGMENTS_SOURCE_MINZOOM,
               maxzoom: SEGMENTS_SOURCE_MAXZOOM,
               attribution: `Robotability snapshot ${entry.date}`,
+              // Promote the id attribute to the feature id so
+              // setFeatureState can address a segment. The feature layers
+              // carry their values in feature state, keyed by this id,
+              // because the tiles hold only id and score.
+              promoteId: 'id',
             },
             layer: {
               id: 'segments',
@@ -761,6 +894,16 @@ export default function MapCanvas() {
         visibility={visibility}
         censusAvailable={Boolean(activeEntry?.urls.census)}
         onToggle={handleToggle}
+        colorBy={colorBy}
+        onColorByChange={setColorBy}
+        featureLoading={featureLoading}
+        featureDisabledReason={
+          activeEntry === null
+            ? 'No snapshot loaded.'
+            : (activeEntry.urls.parquet ?? activeEntry.urls.features ?? null) === null
+              ? 'This snapshot ships no feature table, so only the score can be drawn.'
+              : null
+        }
       />
 
       {mapInstance !== null && (

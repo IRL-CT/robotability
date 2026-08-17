@@ -81,6 +81,46 @@ export function scoreRampExpression(
   return ['interpolate', ['linear'], ['get', property], ...stops];
 }
 
+// A single feature layer draws one normalized feature instead of the
+// composite score, so a degenerate feature is visible on the map rather
+// than only findable by reading the parquet.
+//
+// Feature values are min-max normalized to [0, 1] by the pipeline, and
+// this ramp is linear over that range on purpose. The score ramp uses
+// deciles, which spread any distribution across all 11 colours and would
+// therefore hide exactly what this view exists to show: a feature that is
+// 0 nearly everywhere must look flat, not colourful.
+export function featureBreaks(): number[] {
+  const lastIndex = SCORE_COLORS.length - 1;
+  return SCORE_COLORS.map((_, i) => i / lastIndex);
+}
+
+// The paint expression for a feature layer. The value arrives through
+// feature state, set from features.parquet, because the tiles carry only
+// id and score: all 19 features quantised into the tiles measured 104.3
+// MiB against GitHub Pages' 100 MiB per-file limit.
+//
+// A segment with no state yet — its row missing, or the table still
+// loading — paints in NO_DATA_COLOR rather than defaulting to the bottom
+// of the ramp, so "no value" never masquerades as "value 0". That
+// distinction is the whole point of this view.
+export const NO_DATA_COLOR = 'rgb(120, 120, 120)';
+
+export function featureRampExpression(breaks: readonly number[]): unknown[] {
+  const stops: Array<number | string> = [];
+  for (let i = 0; i < SCORE_COLORS.length; i += 1) {
+    const color = SCORE_COLORS[i];
+    stops.push(breaks[i]);
+    stops.push(`rgb(${color[0]}, ${color[1]}, ${color[2]})`);
+  }
+  return [
+    'case',
+    ['==', ['feature-state', 'featureValue'], null],
+    NO_DATA_COLOR,
+    ['interpolate', ['linear'], ['to-number', ['feature-state', 'featureValue']], ...stops],
+  ];
+}
+
 // Where a score sits on the ramp, 0-100. With decile breaks this is the
 // segment's true percentile among the snapshot's segments, which is what
 // the breakdown panel claims to show.
