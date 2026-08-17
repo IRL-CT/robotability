@@ -159,11 +159,25 @@ jobs:
             snapshot-incoming/manifest.json \
             --clobber
 
-      # STE 8: verify asset serving. Release assets must serve CORS
-      # headers and support Range requests. The map needs both.
-      # A serving failure does NOT fail the workflow. It sets the
-      # mirror_needed output and emits a warning annotation instead.
-      - name: Verify asset serving
+      # STE 8: verify the release assets are retrievable.
+      #
+      # This step used to require access-control-allow-origin on the
+      # release assets, on the assumption that the map fetched them
+      # directly. It does not, and release assets never send that header:
+      # a HEAD returns a 302 to objects.githubusercontent.com and no CORS
+      # header, with or without an Origin request header. So the check
+      # reported mirror_needed on every successful publish, which is a
+      # standing false alarm.
+      #
+      # The map reads the artifacts same-origin from public/snapshots/,
+      # staged below, so CORS never applies to it. What still matters
+      # about the release is that it works as the archive: the assets
+      # exist and honour a byte range, which is what a partial download
+      # of the pmtiles needs.
+      #
+      # A failure here does NOT fail the workflow. The site does not
+      # depend on these URLs.
+      - name: Verify release assets
         if: steps.resolve.outputs.skip != 'true'
         id: serving
         env:
@@ -172,10 +186,10 @@ jobs:
           BASE="https://github.com/$GITHUB_REPOSITORY/releases/download/$TAG"
           OK=true
           for FILE in segments.pmtiles features.parquet manifest.json; do
-            URL="$BASE/$FILE"
-            HEADERS=$(curl -sS -L -I "$URL" 2>/dev/null || true)
-            if ! printf '%s' "$HEADERS" | grep -qi '^access-control-allow-origin: \*'; then
-              echo "asset $FILE lacks access-control-allow-origin: *"
+            STATUS=$(curl -sS -L -I -o /dev/null -w '%{http_code}' \
+              "$BASE/$FILE" 2>/dev/null || echo 000)
+            if [ "$STATUS" != "200" ]; then
+              echo "asset $FILE returned HTTP $STATUS, expected 200"
               OK=false
             fi
           done
@@ -187,11 +201,11 @@ jobs:
             OK=false
           fi
           if [ "$OK" = "true" ]; then
-            echo "mirror_needed=false" >> "$GITHUB_OUTPUT"
-            echo "asset serving verified: CORS header and Range support present"
+            echo "archive_ok=true" >> "$GITHUB_OUTPUT"
+            echo "release assets verified: all three present, Range honoured"
           else
-            echo "::warning::release asset serving check failed. A mirror may be needed."
-            echo "mirror_needed=true" >> "$GITHUB_OUTPUT"
+            echo "::warning::release archive check failed. The site is unaffected."
+            echo "archive_ok=false" >> "$GITHUB_OUTPUT"
           fi
 
       # STE 9: update the site manifest on main. This runs the same
