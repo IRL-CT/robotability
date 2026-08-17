@@ -56,6 +56,22 @@ const DEFAULT_TARGET_MANIFEST = path.join(ROOT, 'public', 'manifest.json');
 // in the snapshot dir as a validator input; it is not a release asset.
 const RELEASE_FILES = ['segments.pmtiles', 'features.parquet', 'manifest.json'];
 
+// Snapshot artifacts are served by the site itself, from
+// public/snapshots/<date>/. GitHub release assets carry no
+// access-control-allow-origin header, so the browser cannot range-fetch the
+// pmtiles from a release; same-origin sidesteps CORS entirely. The release
+// remains the archive of record.
+//
+// The cost is that every snapshot adds about 76 MiB to git permanently, and
+// GitHub Pages wants the built site under 1 GiB, so this holds roughly 13
+// snapshots. Moving to an object store with CORS is the fix when that binds.
+const SITE_SNAPSHOT_ROOT = '/snapshots';
+
+// The census choropleth ships with the site under public/snapshots. It is a
+// 2023 ACS layer, not snapshot output, and every snapshot points at this one
+// copy.
+const CENSUS_URL = `${SITE_SNAPSHOT_ROOT}/2023-08-01/census.pmtiles`;
+
 // 48h. The same freshness rule as the contract validator.
 const DATE_MAX_AGE_MS = 48 * 60 * 60 * 1000;
 
@@ -243,10 +259,35 @@ if (typeof siteManifest !== 'object' || siteManifest === null || !Array.isArray(
 // GITHUB_REPOSITORY is set by GitHub Actions. Local runs keep the
 // placeholder; the release itself is the source of truth for the assets.
 const repo = process.env.GITHUB_REPOSITORY || 'OWNER/REPO';
+const assetUrlTemplate = `https://github.com/${repo}/releases/download/${tag}/{file}`;
+// Site-relative, so the map fetches the artifacts from its own origin and
+// needs no CORS header. The publish workflow copies the artifacts into
+// public/snapshots/<date>/ to match.
+const siteAsset = (file) => `${SITE_SNAPSHOT_ROOT}/${manifest.date}/${file}`;
 const entry = {
   date: manifest.date,
   tag,
-  asset_url_template: `https://github.com/${repo}/releases/download/${tag}/{file}`,
+  // The release stays the archive of record. It is not what the browser
+  // reads: release assets serve no access-control-allow-origin header,
+  // so a cross-origin range fetch of the pmtiles is blocked. Verified
+  // against a published asset, with and without an Origin header, and
+  // the workflow's own serving check reports the same thing.
+  asset_url_template: assetUrlTemplate,
+  // The map reads entry.urls, and it reads it same-origin from the site.
+  // An entry carrying only the template parses to nothing:
+  // MapCanvas.parseManifest requires a urls record and skips the entry
+  // when it is absent, so a snapshot could publish, appear in this file,
+  // and never reach the map. The drop is silent there by design — one
+  // bad entry must not break the whole manifest — which is exactly why
+  // the producer has to emit the shape the consumer reads.
+  urls: {
+    segments: siteAsset('segments.pmtiles'),
+    parquet: siteAsset('features.parquet'),
+    manifest: siteAsset('manifest.json'),
+    // The census overlay is not snapshot data. It is a 2023 ACS layer
+    // shared by every snapshot, so it keeps its own fixed path.
+    census: CENSUS_URL,
+  },
   row_count: manifest.row_count,
   score_min: manifest.score_min,
   score_max: manifest.score_max,

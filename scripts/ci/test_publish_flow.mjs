@@ -141,14 +141,29 @@ function assertion1() {
     appended === 1 &&
     last.date === fixtureManifest.date &&
     last.tag === `snapshot-${fixtureManifest.date}`;
-  const ok = filesOk && entryOk;
+  // The map reads entry.urls and drops any entry without it, silently.
+  // An entry that carried only asset_url_template published a snapshot
+  // that never reached the map, so assert the shape the consumer needs:
+  // a urls record with site-relative segments and parquet paths under
+  // the snapshot's own date.
+  const urls = last && last.urls;
+  const expectedPrefix = `/snapshots/${fixtureManifest.date}/`;
+  const urlsOk =
+    urls !== null &&
+    typeof urls === 'object' &&
+    urls.segments === `${expectedPrefix}segments.pmtiles` &&
+    urls.parquet === `${expectedPrefix}features.parquet` &&
+    typeof urls.census === 'string' &&
+    urls.census.endsWith('.pmtiles');
+  const ok = filesOk && entryOk && urlsOk;
   report(
     1,
     label,
     ok,
     `  exit ${r.status}, release files ok: ${filesOk}, ` +
       `appended entries: ${appended}, last date: ${last && last.date}, ` +
-      `last tag: ${last && last.tag}`,
+      `last tag: ${last && last.tag}, urls ok: ${urlsOk} ` +
+      `(segments: ${urls && urls.segments})`,
   );
 }
 

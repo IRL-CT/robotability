@@ -201,6 +201,26 @@ jobs:
         if: steps.resolve.outputs.skip != 'true'
         run: node scripts/ci/publish_flow.mjs snapshot-incoming
 
+      # STE 9b: copy the artifacts into the site, same-origin.
+      # The map range-fetches the pmtiles from the browser, and GitHub
+      # release assets carry no access-control-allow-origin header, so a
+      # cross-origin fetch of a release asset is blocked. Serving from
+      # the site's own origin needs no CORS at all. The release stays the
+      # archive of record. segments.geojson is a validator input only and
+      # is not served.
+      - name: Stage artifacts into the site
+        if: steps.resolve.outputs.skip != 'true'
+        env:
+          DATE: ${{ steps.snap.outputs.date }}
+        run: |
+          DEST="public/snapshots/$DATE"
+          mkdir -p "$DEST"
+          cp snapshot-incoming/segments.pmtiles \
+             snapshot-incoming/features.parquet \
+             snapshot-incoming/manifest.json \
+             "$DEST/"
+          du -sh "$DEST"
+
       # STE 10: commit and push the manifest update.
       # NOTE: this push to main triggers deploy.yml on purpose. The site
       # must redeploy so the map sees the new snapshot entry.
@@ -211,7 +231,7 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add public/manifest.json
+          git add public/manifest.json "public/snapshots/$DATE"
           if git diff --cached --quiet; then
             echo "manifest unchanged. Nothing to commit."
           else
