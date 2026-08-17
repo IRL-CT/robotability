@@ -40,7 +40,8 @@ Cell numbers are zero-based indices into the notebook cell array.
 | `POLARITIES` | score.ipynb cell 96 (the 19 computed features only). |
 | `CONSTANT_ONE_FEATURES` | score.ipynb cells 26, 76, 86. |
 | `TRAFFIC_MANAGEMENT_COLUMNS` | score.ipynb cell 58. |
-| `SLOPE_RADIUS_FT`, `SLOPE_MAX_NEIGHBORS` | score.ipynb cell 36. |
+| `SLOPE_MAX_NEIGHBORS` | score.ipynb cell 36. |
+| `SLOPE_MIN_BASELINE_FT`, `SLOPE_MAX_GRADE` | **Not in the notebook.** Deliberate divergences, measured and justified beside the constants in `features_spec.py`. The notebook's 50 ft radius is also gone: it ran over ~465k sampled points, this runs over one centroid per segment, and at that spacing the radius left 35% of segments with no neighbour and a 0.0 that could not be told from flat ground. |
 
 ## compute_score.py (CLI wrapper)
 

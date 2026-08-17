@@ -21,7 +21,8 @@ import pipeline_common as pc  # noqa: E402
 
 from features_spec import (  # noqa: E402,F401
     FEATURES, POLARITIES, CONSTANT_ONE_FEATURES,
-    TRAFFIC_MANAGEMENT_COLUMNS, SLOPE_RADIUS_FT, SLOPE_MAX_NEIGHBORS,
+    TRAFFIC_MANAGEMENT_COLUMNS, SLOPE_MAX_NEIGHBORS,
+    SLOPE_MIN_BASELINE_FT, SLOPE_MAX_GRADE,
 )
 
 
@@ -254,42 +255,66 @@ def slope_gradient(
     elevations: Sequence[float],
     centroids_proj_xy: Sequence[tuple],
 ) -> List[float]:
-    """Compute the mean slope to nearby points. Port of score.ipynb cell 36.
+    """Mean slope to the nearest neighbours. From score.ipynb cell 36.
 
-    Each point looks at most 10 nearest neighbors within 50 ft. The slope is
-    the mean of |height difference| / distance over those neighbors. Points
-    without a neighbor get 0. Coordinates must already be in EPSG:2263 (ft).
+    The slope is the mean of |height difference| / distance over the
+    SLOPE_MAX_NEIGHBORS nearest other centroids, ignoring any closer than
+    SLOPE_MIN_BASELINE_FT, clipped at SLOPE_MAX_GRADE. Coordinates must
+    already be in EPSG:2263 (feet).
+
+    Three things differ from the first port, all measured on the 2026
+    citywide run and all documented beside their constants in
+    features_spec: the 50 ft radius is gone, neighbours closer than 5 ft
+    are ignored, and the result is clipped to a physical maximum grade.
+    Together they take the feature from 57.7% exactly zero to 1.6%.
+
+    A segment with no neighbour beyond the baseline still returns 0.0.
+    That is the one case where "could not measure" and "flat" remain the
+    same value, and it is now 0.70% of the city rather than 35.25%.
+    Reporting it as NaN would be truer but the contract cannot carry it:
+    score_normalized skips NaN, so those segments would silently score
+    over 18 features instead of 19.
+
+    Uses scipy's cKDTree, as the research does. A k-nearest query is what
+    this needs and shapely's STRtree does not offer one.
     """
     import numpy as np
-    from shapely import STRtree, Point
+    from scipy.spatial import cKDTree
 
     n = len(elevations)
     if n == 0:
         return []
-    points = [Point(x, y) for x, y in centroids_proj_xy]
-    tree = STRtree(points)
+    if n == 1:
+        return [0.0]
+
     heights = np.asarray(elevations, dtype=np.float64)
     coords = np.asarray(centroids_proj_xy, dtype=np.float64)
-    out: List[float] = []
-    for i in range(n):
-        candidate_idx = tree.query(points[i], predicate='dwithin', distance=SLOPE_RADIUS_FT)
-        keep = [int(j) for j in candidate_idx if int(j) != i]
-        if not keep:
-            out.append(0.0)
-            continue
-        deltas = coords[keep] - coords[i]
-        dists = np.sqrt((deltas ** 2).sum(axis=1))
-        positive = dists > 0
-        keep = [j for j, ok in zip(keep, positive) if ok]
-        dists = dists[positive]
-        if not keep:
-            out.append(0.0)
-            continue
-        order = np.argsort(dists)[:SLOPE_MAX_NEIGHBORS]
-        nearest = [keep[k] for k in order]
-        height_diffs = np.abs(heights[nearest] - heights[i])
-        slopes = height_diffs / dists[order]
-        out.append(float(np.abs(slopes).mean()))
-    return out
+    # k includes the point itself, which is always its own nearest.
+    k = min(SLOPE_MAX_NEIGHBORS + 1, n)
+    tree = cKDTree(coords)
+    dist, idx = tree.query(coords, k=k)
+    dist = np.atleast_2d(dist)[:, 1:]
+    idx = np.atleast_2d(idx)[:, 1:]
+
+    # cKDTree marks a miss with an infinite distance and an out-of-range
+    # index. There are no misses without a distance bound, but keep the
+    # guard so a future bound cannot read past the array.
+    usable = np.isfinite(dist) & (idx < n) & (dist >= SLOPE_MIN_BASELINE_FT)
+    safe_idx = np.where(idx < n, idx, 0)
+    height_diff = np.abs(heights[safe_idx] - heights[:, None])
+    slopes = np.where(usable, height_diff / np.where(dist > 0, dist, 1.0), 0.0)
+
+    counts = usable.sum(axis=1)
+    totals = slopes.sum(axis=1)
+    mean = np.divide(totals, counts, out=np.zeros(n, dtype=np.float64),
+                     where=counts > 0)
+    clipped = int((mean > SLOPE_MAX_GRADE).sum())
+    mean = np.clip(mean, 0.0, SLOPE_MAX_GRADE)
+    no_neighbour = int((counts == 0).sum())
+    pc.log(f'score_core: slope over {n} segments, '
+           f'{no_neighbour} with no neighbour beyond '
+           f'{SLOPE_MIN_BASELINE_FT:g} ft ({100.0 * no_neighbour / n:.2f}%), '
+           f'{clipped} clipped at {SLOPE_MAX_GRADE:g}')
+    return [float(v) for v in mean]
 
 

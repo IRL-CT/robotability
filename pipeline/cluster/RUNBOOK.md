@@ -12,7 +12,9 @@ The pipeline computes one snapshot per run. It writes four artifacts:
 The cluster node needs:
 
 - Python 3.9 or newer with `pyarrow`, `geopandas`, `pandas`, `shapely`,
-  `pyyaml`, `centerline`. Real runs also need `rasterio` for the DEM.
+  `scipy`, `pyyaml`, `centerline`. Real runs also need `rasterio` for the
+  DEM. `scipy` is stage 4 only: `slope_gradient` needs a k-nearest query
+  and uses `scipy.spatial.cKDTree`, as the research notebook does.
 - Node.js 18 or newer (the contract validator).
 - `tippecanoe` for the PMTiles build.
 - A checkout of this repository on the `site-2026` branch or newer.

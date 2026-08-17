@@ -77,7 +77,45 @@ TRAFFIC_MANAGEMENT_COLUMNS = (
     'leading_ped_intervals_count',
 )
 
-# Slope neighbor search radius and neighbor cap from score.ipynb cell 36.
-SLOPE_RADIUS_FT = 50.0
+# Slope gradient neighbour search. score.ipynb cell 36 takes the 10
+# nearest neighbours within 50 ft, in EPSG:2263, so the 50 really is
+# feet and the port carried it faithfully. The radius still had to go.
+#
+# The research ran over about 465k sampled POINTS along the sidewalks.
+# The pipeline runs over one centroid per SEGMENT, which are far sparser
+# (median nearest neighbour 26.5 ft). The same 50 ft therefore stopped
+# meaning what it meant: 35.25% of segments found no neighbour at all and
+# took the 0.0 fallback, so "could not measure" was written to the same
+# column, and with the same value, as "flat". Taking the 10 nearest
+# without a radius drops that to 0.70% and keeps the research's real
+# intent, which is the ten nearest neighbours.
 SLOPE_MAX_NEIGHBORS = 10
+
+# Ignore neighbours closer than this. Slope is |height difference| over
+# distance, and the code used to exclude only distance == 0. Centroids
+# come as close as 0.000079 ft, a thousandth of an inch, so a single
+# one-foot DEM step across that gap produced a slope near 100. The
+# observed maximum was 7.69 against a p99 of 0.166, and min-max
+# normalization then divided every real value by that outlier.
+#
+# 5 ft is where the DEM's own quantisation stops dominating: the DEM is
+# integer feet, so the smallest non-zero height difference it can report
+# is 1 ft, which over 5 ft is already a 20% grade.
+SLOPE_MIN_BASELINE_FT = 5.0
+
+# Clip the mean slope here before normalizing. A fixed physical ceiling
+# rather than a percentile of the run, so the value does not depend on
+# which segments happen to be in the snapshot.
+#
+# 0.30 is a 30% grade. NYC's steepest street is about 32% and an ADA
+# ramp maxes at 8.3%, so nothing above this is a sidewalk a robot
+# traverses; it is the integer DEM divided by a short baseline. The
+# citywide p99.9 is 0.2963, so this clips about 0.1% of segments.
+#
+# On a full-city run enough segments clip that min_max_normalize sees a
+# maximum of exactly this value, which makes the normalized feature read
+# as a fraction of a 30% grade. A small bbox run need not contain one,
+# and there the window is still whatever that extract spans, as it is
+# for every other feature.
+SLOPE_MAX_GRADE = 0.30
 
