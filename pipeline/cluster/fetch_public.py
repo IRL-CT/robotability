@@ -74,12 +74,16 @@ def build_datasets() -> List[Dataset]:
         Dataset('ntas_nyc.csv', 'data/ntas_nyc.csv',
                 rows_csv_url('9nt8-h7nd'), '9nt8-h7nd', False),
         # 2020 census blocks. Context join.
+        # pull_data.sh pulled nycb2020_24c.zip from the DCP bytes host. That
+        # host now 404s for every version string. DCP publishes the same
+        # boundaries on Open Data as wmsu-5muw. No stage reads this file
+        # today. Kept because pull_data.sh lists it.
         Dataset('nyc_cbs.zip', 'data/nyc_cbs.zip',
-                'https://s-media.nyc.gov/agencies/dcp/assets/files/zip/data-tools/bytes/nycb2020_24c.zip',
-                'nycb2020_24c', False),
-        # Community districts. surface_condition join.
+                shapefile_url('wmsu-5muw'), 'wmsu-5muw', False),
+        # Community districts. surface_condition join. Needs boro_cd.
+        # Replaces yfnk-k7r4, which 404s. 5crt-au7u carries boro_cd.
         Dataset('community_districts_nyc.zip', 'data/community_districts_nyc.zip',
-                shapefile_url('yfnk-k7r4'), 'yfnk-k7r4', True),
+                shapefile_url('5crt-au7u'), '5crt-au7u', True),
         # CitiBike trips 2023-12. bicycle_traffic + charging_station_proximity.
         Dataset('citibike_202312', 'data/citibike_202312',
                 'https://s3.amazonaws.com/tripdata/JC-202312-citibike-tripdata.csv.zip',
@@ -99,16 +103,36 @@ def build_datasets() -> List[Dataset]:
         Dataset('raised_crosswalks_nyc.csv', 'data/raised_crosswalks_nyc.csv',
                 rows_csv_url('uh2s-ftgh'), 'uh2s-ftgh', False),
         # VZW enhanced crossings. traffic_management context.
+        # Replaces k9a2-vdr8, which 404s.
         Dataset('vzw_enhanced_crossings_nyc.csv', 'data/vzw_enhanced_crossings_nyc.csv',
-                rows_csv_url('k9a2-vdr8'), 'k9a2-vdr8', False),
+                rows_csv_url('6ax4-q5k4'), '6ax4-q5k4', False),
         # Zoning districts. zoning_laws + crowd_dynamics.
+        # kdig-pewd is retired. DCP now ships all six zoning feature classes
+        # as one file geodatabase, so this is a plain file download rather
+        # than a Socrata geospatial export. The zoning district polygons are
+        # layer nyzd, whose ZONEDIST column features_join.join_zoning reads.
         Dataset('zoning_nyc', 'data/zoning_nyc',
-                shapefile_url('kdig-pewd'), 'kdig-pewd', True),
+                f'{NYC_OPENDATA}/download/mm69-vrje/application/zip',
+                'mm69-vrje', True),
         # NYC 1-foot DEM. slope_gradient. The cluster usually reads the lab
         # copy instead. Kept here because pull_data.sh lists it.
         Dataset('1ft_dem_nyc', 'data/1ft_dem_nyc',
                 'https://sa-static-customer-assets-us-east-1-fedramp-prod.s3.amazonaws.com/data.cityofnewyork.us/NYC_DEM_1ft_Int.zip',
                 'NYC_DEM_1ft_Int', True),
+        # DOT Pedestrian Demand Map. pedestrian_density.
+        # Replaces the dashcam pedestrian counts. The DOT Pedestrian
+        # Mobility Plan assigns every city street one of five categories
+        # modelled from retail, office and residential area density,
+        # restaurants, parks, school frontages, subway ridership and
+        # hospitals. See methodology-ped-demand-map.pdf. The rank column
+        # runs the other way from demand: 1 Global, 2 Regional,
+        # 3 Neighborhood, 4 Community Connector, 5 Citywide Baseline, so
+        # rank 1 is the busiest street and rank 5 the quiet default.
+        # This is the v3 query endpoint rather than a rows.csv export
+        # because the geometry is what the join needs.
+        Dataset('ped_demand_nyc.geojson', 'data/ped_demand_nyc.geojson',
+                f'{NYC_OPENDATA}/api/v3/views/fwpa-qxaf/query.geojson',
+                'fwpa-qxaf', False),
         # Points of interest. Context join in dataset.ipynb.
         Dataset('pois_nyc.csv', 'data/pois_nyc.csv',
                 rows_csv_url('t95h-5fsr'), 't95h-5fsr', False),
@@ -116,16 +140,23 @@ def build_datasets() -> List[Dataset]:
         Dataset('scorecard_ratings.csv', 'data/Scorecard_Ratings.csv',
                 rows_csv_url('rqhp-hivt'), 'rqhp-hivt', False),
         # Vision Zero traffic management. traffic_management terms 1-5.
+        # Every VZV layer exists twice on Socrata: a 'map' asset and a
+        # 'dataset' asset with the same name. rows.csv on a map asset
+        # returns a body of newlines with no header, which pandas rejects
+        # with EmptyDataError. The four ids below are the dataset twins of
+        # the map ids the port started with (79sh-heg3, hz4p-9f7s,
+        # mqt5-ctec, wqhs-q6wd). Check assetType before adding a VZV id.
         Dataset('vzv_sip_intersections.csv', 'data/dot_VZV_SIP_Intersections.csv',
-                rows_csv_url('79sh-heg3'), '79sh-heg3', False),
+                rows_csv_url('shr7-eqdc'), 'shr7-eqdc', False),
         Dataset('vzv_turn_traffic_calming.csv', 'data/dot_VZV_Turn_Traffic_Calming.csv',
-                rows_csv_url('hz4p-9f7s'), 'hz4p-9f7s', False),
+                rows_csv_url('sm2x-35i7'), 'sm2x-35i7', False),
         Dataset('vzv_leading_ped_intervals.csv', 'data/dot_VZV_Leading_Pedestrian_Intervals.csv',
-                rows_csv_url('mqt5-ctec'), 'mqt5-ctec', False),
+                rows_csv_url('xc4v-ntf4'), 'xc4v-ntf4', False),
         Dataset('vzv_sip_corridors.csv', 'data/dot_VZV_SIP_Corridors.csv',
-                rows_csv_url('wqhs-q6wd'), 'wqhs-q6wd', False),
+                rows_csv_url('if4c-w48d'), 'if4c-w48d', False),
+        # Replaces 7f9e-jic4, which 404s.
         Dataset('vzv_speed_humps.csv', 'data/dot_VZV_Speed_Humps.csv',
-                rows_csv_url('7f9e-jic4'), '7f9e-jic4', False),
+                rows_csv_url('jknp-skuy'), 'jknp-skuy', False),
         Dataset('vzv_barnes_dance.csv', 'data/dot_VZV_Barnes_Dance.csv',
                 rows_csv_url('8kuj-2n3u'), '8kuj-2n3u', False),
         # VZV speed limits. zoning_laws. Not in pull_data.sh. dataset.ipynb
@@ -150,9 +181,25 @@ def build_datasets() -> List[Dataset]:
                 rows_csv_url('t4f2-8md7'), 't4f2-8md7', False),
         Dataset('bicycle_parking_shelters_nyc.csv', f'{furniture}/bicycle_parking_shelters_nyc.csv',
                 rows_csv_url('dimy-qyej'), 'dimy-qyej', False),
+        # yh4a-g3fj returns 403. DOT folded the standalone rack layer into
+        # Bicycle Parking (592z-n7dk), which covers racks plus the other
+        # parking types and carries a racktype column. This join only counts
+        # points near a segment, so the wider set is the closest live match.
+        # format=Original is gone with the old id. Shapefile unzips the same.
         Dataset('bicycle_racks_nyc', f'{furniture}/bicycle_racks_nyc',
-                f'{NYC_OPENDATA}/api/geospatial/yh4a-g3fj?method=export&format=Original',
-                'yh4a-g3fj', True),
+                shapefile_url('592z-n7dk'), '592z-n7dk', True),
+        # DOB active sidewalk shed permits. street_furniture_density.
+        # Not in pull_data.sh. street_furniture.ipynb cell 33 read a manual
+        # download of this file as data/dob_active_sheds.csv. It is not on
+        # Socrata. DOB publishes it as the backing CSV of the sidewalk shed
+        # map at nyc.gov/assets/buildings/html/sidewalk-shed-map.html, which
+        # is this URL. The columns match the research file exactly.
+        # The feed holds only currently-active sheds, so it needs no date
+        # filter. Cell 34 filtered First Permit Date <= 2023-08-31 solely to
+        # pull a later manual download back to the analysis date.
+        Dataset('dob_active_sheds.csv', f'{furniture}/dob_active_sheds.csv',
+                'https://nycdob.github.io/ActiveShedPermits/data/Active_Sheds2.csv',
+                'dob-active-sheds', False),
         Dataset('citybench_nyc.csv', f'{furniture}/citybench_nyc.csv',
                 rows_csv_url('kuxa-tauh'), 'kuxa-tauh', False),
         Dataset('forestry_tree_points_nyc.csv', f'{furniture}/forestry_tree_points_nyc.csv',
@@ -187,11 +234,33 @@ def _part_path(dest: str) -> str:
     return dest + '.part'
 
 
+def has_content(path: str) -> bool:
+    """True when path holds something a reader could parse.
+
+    A non-zero size is not enough. Socrata answers rows.csv on a 'map'
+    asset with a body of newlines and no header, which lands as a file of
+    a few hundred bytes that every CSV reader rejects. Treating that as a
+    finished download hid the failure until build_features crashed three
+    stages later, so the size check needs one non-whitespace byte too.
+    """
+    if not os.path.isfile(path) or os.path.getsize(path) == 0:
+        return False
+    with open(path, 'rb') as handle:
+        return handle.read(4096).strip() != b''
+
+
 def download_one(dataset: Dataset, work_dir: str) -> str:
     """Download one dataset into the work dir. Return a status word."""
     dest = os.path.join(work_dir, dataset.dest)
-    if os.path.exists(dest) and os.path.getsize(dest) > 0:
+    if os.path.isdir(dest) and os.listdir(dest):
         return 'present'
+    if os.path.exists(dest) and not os.path.isdir(dest):
+        if has_content(dest):
+            return 'present'
+        # An empty or whitespace-only file is a failed download wearing a
+        # finished download's name. Drop it and fetch again.
+        pc.log(f'fetch_public: {dataset.name} on disk holds no data. Refetching.')
+        os.remove(dest)
     if dataset.url is None:
         return 'manual'
     pc.ensure_dir(os.path.dirname(dest))
@@ -213,6 +282,13 @@ def download_one(dataset: Dataset, work_dir: str) -> str:
                     break
                 out.write(chunk)
     os.replace(part, dest)
+    if not has_content(dest):
+        # A 200 with an unparseable body. Raise so main() counts this the
+        # same as a transport failure instead of reporting a good fetch.
+        os.remove(dest)
+        raise ValueError(
+            f'{dataset.url} returned no parseable content. If this is a '
+            f'Socrata id, check that it names a dataset and not a map.')
     return 'downloaded'
 
 

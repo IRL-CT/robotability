@@ -31,8 +31,32 @@ import compute_score as cs  # noqa: E402
 
 # Full-city row count band from the contract. Runs outside the band are
 # small-area test runs and use the validator's relaxed row count check.
-ROW_COUNT_MIN = 460350
-ROW_COUNT_MAX = 469650
+#
+# The band counts centerline segments, one row per segment, with a 1%
+# margin either side of 491894 measured on the 2026 basemap.
+#
+# The previous band, [460350, 469650], was a 1% margin around 464968,
+# which is the row count of snapshot0 and of the research file
+# score_by_sidewalk.csv. That number counts a different thing. The
+# research sampled points every 50 ft along each segment
+# (dataset.ipynb cell 14, segmentize(50).extract_unique_points()),
+# scored the points, then averaged back per segment, so a segment too
+# short to yield a sample point never reached the output. This pipeline
+# scores segments directly, which score_core.aggregate_segment_scores
+# documents, so it has no such attrition and always emits one row per
+# segment. Against the 2023 basemap it would emit 476398 rows, already
+# above the old ceiling: the old band was unreachable here whatever the
+# basemap year, because it was a bound on a quantity this pipeline does
+# not produce.
+#
+# Of the change from 476398 to 491894, +3.25% is the 2023 to 2026
+# growth of the sidewalk basemap itself, like for like.
+#
+# Keep these two constants equal to ROW_COUNT_MIN and ROW_COUNT_MAX in
+# pipeline/contract/validate_snapshot.mjs. CI reads that copy and never
+# relaxes it.
+ROW_COUNT_MIN = 486975
+ROW_COUNT_MAX = 496813
 
 # tippecanoe flags mirror scripts/tiles/build_pmtiles.mjs. --drop-rate=0
 # keeps every segment. The include list keeps only id and score.
@@ -89,6 +113,27 @@ def write_geojson(path: str, segment_ids: List[int], geom_wkt: List[str],
         json.dump(doc, f)
 
 
+def _finite_min_max(name: str, values: list) -> dict:
+    """Min and max of one feature column, ignoring NaN.
+
+    Three features carry NaN by design: pedestrian_density,
+    bicycle_traffic and vehicle_traffic are NaN for every segment no
+    dashcam ever drove past, which was 84,260 of 491,894 on the 2026
+    basemap. The builtin min() and max() do not skip NaN the way the
+    pandas calls in score.ipynb do, so they returned NaN here and
+    json.dump wrote a bare NaN token. JSON has no such literal, so the
+    contract validator rejected the manifest at the parse step, before
+    reaching any rule. The contract also requires min and max to be
+    numbers with min <= max, which NaN fails on its own terms.
+    """
+    finite = [v for v in values if not cs._is_nan(v)]
+    if not finite:
+        pc.die(f'feature {name} holds no finite value, so the manifest '
+               f'cannot carry a min and max for it. The contract requires '
+               f'both. Check the join that produces {name}.')
+    return {'min': min(finite), 'max': max(finite)}
+
+
 def build_pmtiles(geojson_path: str, out_path: str) -> None:
     """Run tippecanoe. Stop with a clean error when it fails or hangs."""
     args = [
@@ -98,6 +143,16 @@ def build_pmtiles(geojson_path: str, out_path: str) -> None:
         '--layer=segments',
         f'--maximum-zoom={TIPPECANOE_MAX_ZOOM}',
         '--drop-rate=0',
+        # These two travel with --drop-rate=0 and were missing from this
+        # port. tippecanoe caps a tile at 200000 features and 500 KB and
+        # shrinks an over-full tile by dropping, which --drop-rate=0
+        # forbids, so it fails the build instead. On the 2026 basemap
+        # tile 7/37/48 held 200001 features and stopped the run one
+        # feature over the cap, having written tiles only through zoom 6.
+        # scripts/tiles/build_pmtiles.mjs raises both caps for exactly
+        # this reason; the values here match it.
+        '--no-feature-limit',
+        '--maximum-tile-bytes=20000000',
         '--include=id',
         '--include=score',
         geojson_path,
@@ -147,12 +202,25 @@ def _file_entry(path: str) -> Dict:
     }
 
 
-def run_validator(snapshot_dir: str, row_count: int) -> None:
-    """Run the contract validator. Gate on the exit code, never on text."""
+def run_validator(snapshot_dir: str, row_count: int,
+                  report: Dict) -> None:
+    """Run the contract validator. Gate on the exit code, never on text.
+
+    Only a test run relaxes the row count band. The build report
+    identifies such a run: it has a bbox, or it uses mock data. A
+    full-city run must face the real band. If the count alone selected
+    the relaxed check, a full-city run with a wrong count would print
+    PASS here and then get rejected by CI, which never relaxes the band.
+    """
     args = ['node', pc.validator_path(), snapshot_dir]
-    if row_count < ROW_COUNT_MIN or row_count > ROW_COUNT_MAX:
+    is_test_run = report.get('bbox') is not None or bool(report.get('mock'))
+    if is_test_run:
         # Small-area test run. Relax the row count band to the exact count.
         args += ['--relax-row-count', str(row_count)]
+    elif row_count < ROW_COUNT_MIN or row_count > ROW_COUNT_MAX:
+        pc.log(f'emit_artifacts: WARNING full-city row count {row_count} '
+               f'is outside the band [{ROW_COUNT_MIN}, {ROW_COUNT_MAX}]. '
+               'The validator rejects it. CI rejects it too.')
     pc.log(f'emit_artifacts: running {" ".join(args)}')
     proc = subprocess.run(args)
     if proc.returncode != 0:
@@ -218,10 +286,8 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     pc.log('emit_artifacts: write features.parquet')
     write_features_parquet(parquet_path, segment_ids, feature_arrays, scores)
 
-    feature_stats = {
-        f: {'min': min(feature_arrays[f]), 'max': max(feature_arrays[f])}
-        for f in cs.FEATURES
-    }
+    feature_stats = {f: _finite_min_max(f, feature_arrays[f])
+                     for f in cs.FEATURES}
     manifest = {
         'date': date,
         'row_count': len(segment_ids),
@@ -250,7 +316,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
                'CI rejects partial snapshots. Fix the missing lab input '
                'and rerun.')
         return 0
-    run_validator(args.out, len(segment_ids))
+    run_validator(args.out, len(segment_ids), report)
     return 0
 
 

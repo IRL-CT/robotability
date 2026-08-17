@@ -25,7 +25,9 @@ def join_curb_ramps(segments, work_dir: str) -> Optional[List[float]]:
     path = os.path.join(work_dir, 'data/pedestrian_curb_ramp_nyc.csv')
     if not os.path.isfile(path):
         return None
-    points = _points_from_spec(path, 'wkt', 'the_geom', '', '')
+    # DWS_CONDITIONS is filtered on below, so it has to survive the read.
+    points = _points_from_spec(path, 'wkt', 'the_geom', '', '',
+                               keep_cols=('DWS_CONDITIONS',))
     points = points[points['DWS_CONDITIONS'] == 'Good Condition']
     return _buffered_counts(segments, points, BUFFER_50_FT)
 
@@ -39,20 +41,23 @@ def join_traffic_management(segments, work_dir: str) -> Optional[dict]:
     (uh2s-ftgh), Barnes Dance (8kuj-2n3u), leading pedestrian intervals
     (mqt5-ctec). See NOTEBOOK_TRACE.md for the mapping rationale.
     """
+    # (file, geometry column). The five VZV exports carry the_geom. Raised
+    # crosswalks is a DOT export rather than a VZV layer and names its
+    # geometry WKT Geometry, so the column travels with the file.
     sources = {
-        'in_slow_zone': 'data/dot_VZV_SIP_Corridors.csv',
-        'turn_traffic_calming_count': 'data/dot_VZV_Turn_Traffic_Calming.csv',
-        'sip_intersections_count': 'data/dot_VZV_SIP_Intersections.csv',
-        'sip_corridors_count': 'data/raised_crosswalks_nyc.csv',
-        'barnes_intersections_count': 'data/dot_VZV_Barnes_Dance.csv',
-        'leading_ped_intervals_count': 'data/dot_VZV_Leading_Pedestrian_Intervals.csv',
+        'in_slow_zone': ('data/dot_VZV_SIP_Corridors.csv', 'the_geom'),
+        'turn_traffic_calming_count': ('data/dot_VZV_Turn_Traffic_Calming.csv', 'the_geom'),
+        'sip_intersections_count': ('data/dot_VZV_SIP_Intersections.csv', 'the_geom'),
+        'sip_corridors_count': ('data/raised_crosswalks_nyc.csv', 'WKT Geometry'),
+        'barnes_intersections_count': ('data/dot_VZV_Barnes_Dance.csv', 'the_geom'),
+        'leading_ped_intervals_count': ('data/dot_VZV_Leading_Pedestrian_Intervals.csv', 'the_geom'),
     }
     out = {}
-    for col, rel in sources.items():
+    for col, (rel, geom_col) in sources.items():
         path = os.path.join(work_dir, rel)
         if not os.path.isfile(path):
             return None
-        points = _points_from_spec(path, 'wkt', 'the_geom', '', '')
+        points = _points_from_spec(path, 'wkt', geom_col, '', '')
         out[col] = _buffered_counts(segments, points, BUFFER_50_FT)
     return out
 
@@ -66,15 +71,17 @@ def join_speed_limits(segments, speed_limits_path: str) -> Optional[List[float]]
     """
     import geopandas as gpd
     import pandas as pd
-    from shapely import wkt
+    import shapely
 
     if not os.path.isfile(speed_limits_path):
         return None
-    limits = pd.read_csv(speed_limits_path)
+    limits = pd.read_csv(speed_limits_path, usecols=['the_geom', 'postvz_sl'])
     # Rows without a geometry cannot join. Drop them before the parse.
     limits = limits.dropna(subset=['the_geom'])
     limits = gpd.GeoDataFrame(
-        limits, geometry=limits['the_geom'].apply(wkt.loads), crs=pc.CRS_WGS,
+        limits,
+        geometry=shapely.from_wkt(limits['the_geom'].to_numpy(dtype=object)),
+        crs=pc.CRS_WGS,
     ).to_crs(pc.CRS_PROJ)
     merged = gpd.sjoin_nearest(
         segments[['geometry']], limits[['geometry', 'postvz_sl']],
@@ -93,14 +100,15 @@ def join_bike_routes(segments, work_dir: str) -> Optional[List[float]]:
     """
     import geopandas as gpd
     import pandas as pd
-    from shapely import wkt
+    import shapely
 
     path = os.path.join(work_dir, 'data/New_York_City_Bike_Routes.csv')
     if not os.path.isfile(path):
         return None
-    routes = pd.read_csv(path)
+    routes = pd.read_csv(path, usecols=['the_geom', 'status', 'facilitycl'])
     routes = gpd.GeoDataFrame(
-        routes, geometry=routes['the_geom'].apply(wkt.loads),
+        routes,
+        geometry=shapely.from_wkt(routes['the_geom'].to_numpy(dtype=object)),
         crs=pc.CRS_WGS,
     ).to_crs(pc.CRS_PROJ)
     routes = routes[routes['status'] == 'Current']
@@ -126,7 +134,10 @@ def join_collisions(segments, work_dir: str) -> Optional[List[float]]:
     path = os.path.join(work_dir, 'data/Motor_Vehicle_Collisions.csv')
     if not os.path.isfile(path):
         return None
-    crashes = pd.read_csv(path, low_memory=False)
+    # Four columns of a 476 MB file on NFS. The rest is never read.
+    crashes = pd.read_csv(path, low_memory=False, usecols=[
+        'LATITUDE', 'LONGITUDE',
+        'NUMBER OF PEDESTRIANS INJURED', 'NUMBER OF PEDESTRIANS KILLED'])
     crashes = crashes.dropna(subset=['LATITUDE', 'LONGITUDE'])
     crashes['num_peds_involved'] = (
         crashes['NUMBER OF PEDESTRIANS INJURED'].fillna(0)

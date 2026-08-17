@@ -14,6 +14,31 @@ import pipeline_common as pc  # noqa: E402 (import path set by caller)
 
 # Traffic cone constants from traffic.py.
 MAX_DISTANCE_FT = 150
+
+# FROZEN INPUT. These fifteen days come from a lab collection made in
+# 2023, so every snapshot this pipeline emits carries 2023 traffic no
+# matter what date the snapshot itself bears.
+#
+# The fifteen are a deliberate subset, not everything on disk. The
+# dashcam root holds 27 day directories: 2023-08-10 through 2023-08-31,
+# then 2023-09-29 and 2023-10-20 through 2023-10-29. traffic.py used the
+# August window because score.ipynb cell 4 sets CUTOFF to 2023-08-31 and
+# the other features were built to match that date. Adding the September
+# and October days would widen the sample and improve coverage of the
+# 17% of segments no dashcam drove past, but it would also mix dates
+# across features, so it is a modelling decision rather than a fix.
+#
+# Two scored features still read from here, bicycle_traffic and
+# vehicle_traffic, together 7.8% of the model weight. pedestrian_density
+# used to as well, and moved to the DOT Pedestrian Demand Map, which DOT
+# maintains. See features_join.join_pedestrian_demand.
+#
+# So a 2026 snapshot mixes 2026 sidewalks, 2026 public data and 2023
+# traffic. That is a deliberate choice, not an oversight: no citywide
+# bicycle or vehicle volume model exists to replace these. The public
+# count datasets (ct66-47at, 7ym2-wayt) are sparse sensor readings rather
+# than citywide coverage, so substituting them would leave most segments
+# with no value at all. Read these two features as a 2023 baseline.
 DASHCAM_DAYS = (
     '2023-08-11', '2023-08-12', '2023-08-13', '2023-08-14', '2023-08-17',
     '2023-08-18', '2023-08-20', '2023-08-21', '2023-08-22', '2023-08-23',
@@ -37,12 +62,10 @@ def read_dashcam_traffic(dashcam_root: str, segments) -> Optional[dict]:
     'TRAFFIC_Car': [...]} aligned to the segments, or None when the root
     does not exist.
     """
-    import math
-
     import geopandas as gpd
     import numpy as np
     import pandas as pd
-    from shapely.geometry import Point, Polygon
+    import shapely
 
     if not os.path.isdir(dashcam_root):
         return None
@@ -68,19 +91,26 @@ def read_dashcam_traffic(dashcam_root: str, segments) -> Optional[dict]:
     traffic['camera_heading'] = traffic['direction'].map(DIR_MAPPING)
     traffic = traffic.dropna(subset=['camera_heading'])
 
-    def semicircle(row):
-        # Port of create_semicircle in traffic.py. The cone points along
-        # the camera heading. It spans MAX_DISTANCE_FT in front of the lens.
-        heading_rad = math.radians(row['camera_heading'])
-        angles = np.linspace(heading_rad - np.pi / 2, heading_rad + np.pi / 2, 10)
-        pts = [row['geometry']]
-        for angle in angles:
-            pts.append(Point(row['geometry'].x + MAX_DISTANCE_FT * np.cos(angle),
-                             row['geometry'].y + MAX_DISTANCE_FT * np.sin(angle)))
-        pts.append(row['geometry'])
-        return Polygon(pts)
-
-    traffic['geometry'] = traffic.apply(semicircle, axis=1)
+    # Vectorized port of create_semicircle in traffic.py. Each frame gets a
+    # cone pointing along the camera heading, spanning MAX_DISTANCE_FT in
+    # front of the lens: the lens position, ten points along a half turn,
+    # then back to the lens.
+    #
+    # traffic.py built these one Polygon at a time in a row-wise apply. At
+    # 7.7M dashcam frames that single loop was 78% of the entire feature
+    # build, so it is built here as array math instead. shapely.polygons
+    # reads an (n, 12, 2) coordinate array and returns the same rings;
+    # shapely.equals_exact confirms the two forms agree to 1e-6.
+    heading = np.radians(traffic['camera_heading'].to_numpy(dtype=float))
+    lens_x = traffic.geometry.x.to_numpy()
+    lens_y = traffic.geometry.y.to_numpy()
+    arc = heading[:, None] + np.linspace(-np.pi / 2, np.pi / 2, 10)[None, :]
+    arc_x = lens_x[:, None] + MAX_DISTANCE_FT * np.cos(arc)
+    arc_y = lens_y[:, None] + MAX_DISTANCE_FT * np.sin(arc)
+    ring_x = np.concatenate([lens_x[:, None], arc_x, lens_x[:, None]], axis=1)
+    ring_y = np.concatenate([lens_y[:, None], arc_y, lens_y[:, None]], axis=1)
+    traffic['geometry'] = shapely.polygons(
+        np.stack([ring_x, ring_y], axis=-1))
     joined = gpd.sjoin(traffic, segments[['geometry']], how='inner', predicate='intersects')
     means = joined.groupby('index_right')[['0', '1', '2']].mean()
     n = len(segments)
@@ -106,14 +136,18 @@ def read_surveillance(surveillance_csv: str, segments) -> Optional[List[float]]:
     """
     import geopandas as gpd
     import pandas as pd
-    from shapely import wkt
+    import shapely
 
     if not os.path.isfile(surveillance_csv):
         return None
-    cameras = pd.read_csv(surveillance_csv)
-    cameras = cameras[['n_cameras_median', 'geometry_pano']].dropna(subset=['geometry_pano'])
+    cameras = pd.read_csv(surveillance_csv,
+                          usecols=['n_cameras_median', 'geometry_pano'])
+    cameras = cameras.dropna(subset=['geometry_pano'])
     cameras = gpd.GeoDataFrame(
-        cameras, geometry=cameras['geometry_pano'].apply(wkt.loads), crs=pc.CRS_WGS,
+        cameras,
+        geometry=shapely.from_wkt(
+            cameras['geometry_pano'].to_numpy(dtype=object)),
+        crs=pc.CRS_WGS,
     ).to_crs(pc.CRS_PROJ)
     cameras['geometry'] = cameras.buffer(50)
     merged = gpd.sjoin(segments[['geometry']], cameras, how='left', predicate='intersects')

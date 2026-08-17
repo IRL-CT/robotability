@@ -6,7 +6,7 @@ LineString per segment. This stage turns the sidewalk polygons into
 centerline segments with one width per segment:
 
     dissolve -> explode -> Voronoi centerline -> linemerge ->
-    short dead-end removal -> simplify (1 ft) -> 2-point segments ->
+    short dead-end removal -> simplify (1 m) -> 2-point segments ->
     width = 2 x mean boundary distance along the segment.
 
 The output is deterministic. The same basemap bytes produce the same
@@ -31,12 +31,27 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import pipeline_common as pc  # noqa: E402
 
 SEGMENTS_REL = 'data/sidewalk_segments.parquet'
-# Dead-end spur cap. Matches remove_short_lines in sidewalk_widths.py.
-DEAD_END_MAX_FT = 5.0
-# Simplify tolerance in feet. Matches try_simplify in sidewalk_widths.py.
-SIMPLIFY_TOLERANCE_FT = 1.0
-# Width sampling step in feet. Matches interpolate_by_distance.
-WIDTH_STEP_FT = 1.0
+
+# The research constants below are METRES. sidewalk_widths.py works in
+# EPSG:3627, whose unit is the metre. This stage works in pc.CRS_PROJ
+# (EPSG:2263), whose unit is the US survey foot, because every other
+# join in the pipeline uses foot distances against that CRS. So each
+# research constant converts to feet here. Porting the bare numerals
+# made every length threshold 3.28x too small, which under-simplified
+# the centerlines and produced 1197163 segments against the research
+# 476398. Keep these in feet and keep the metre value in the comment.
+FT_PER_M = 1.0 / 0.30480060960121924  # US survey foot
+
+# Dead-end spur cap. remove_short_lines in sidewalk_widths.py uses 5 m.
+DEAD_END_MAX_FT = 5.0 * FT_PER_M
+# Simplify tolerance. try_simplify in sidewalk_widths.py uses 1 m.
+SIMPLIFY_TOLERANCE_FT = 1.0 * FT_PER_M
+# Width sampling step. interpolate_by_distance uses distance = 1 m.
+WIDTH_STEP_FT = 1.0 * FT_PER_M
+# Voronoi input density. Centerline defaults interpolation_distance to
+# 0.5, which the research got as 0.5 m. Pass it so the CRS unit change
+# cannot silently shift it again.
+CENTERLINE_INTERP_FT = 0.5 * FT_PER_M
 
 
 def remove_short_lines(line):
@@ -148,7 +163,8 @@ def segment_polygon_proj(polygon) -> List[Tuple[object, float]]:
     if polygon is None or polygon.is_empty or polygon.area <= 0:
         return []
     try:
-        centerline = Centerline(polygon)
+        centerline = Centerline(
+            polygon, interpolation_distance=CENTERLINE_INTERP_FT)
     except Exception:  # noqa: BLE001 - a bad polygon must not kill the run
         return []
     geom = centerline.geometry

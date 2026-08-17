@@ -49,8 +49,12 @@ latest snapshot values during a live refresh.
 
 The pinned features are:
 
-- Pedestrian, bicycle, and vehicle density. These come from the lab dashcam
-  detections.
+- Pedestrian density. This comes from the NYC DOT Pedestrian Demand Map, which
+  assigns each street one of five categories. The map is a modelled grade rather
+  than a per-segment count, so the browser cannot recompute it from a viewport
+  query.
+- Bicycle and vehicle density. These come from the lab dashcam detections, which
+  are not public and are fixed at their August 2023 collection date.
 - Surveillance coverage.
 - The three constant features: sidewalk roughness, GPS signal strength, and
   digital map existence.

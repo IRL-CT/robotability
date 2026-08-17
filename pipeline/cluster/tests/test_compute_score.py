@@ -138,6 +138,10 @@ def test_normalize_features_raw_semantics() -> None:
     raw = {
         'width': [5.0, 10.0, 5.0],
         'TRAFFIC_Pedestrian': [0.0, 4.0, 4.0],
+        # DOT demand level, 1 quiet to 5 busy. Normalizes to the
+        # same [0, 1, 1] the dashcam column gave, so the score
+        # literals below are unaffected by the source swap.
+        'ped_demand': [1.0, 5.0, 5.0],
         'TRAFFIC_Bike': [0.0, 2.0, 2.0],
         'TRAFFIC_Car': [0.0, 8.0, 8.0],
         'clutter': [0.0, 3.0, 3.0],
@@ -192,6 +196,10 @@ def test_raw_to_score_integration() -> None:
     raw = {
         'width': [5.0, 10.0, 5.0],
         'TRAFFIC_Pedestrian': [0.0, 4.0, 4.0],
+        # DOT demand level, 1 quiet to 5 busy. Normalizes to the
+        # same [0, 1, 1] the dashcam column gave, so the score
+        # literals below are unaffected by the source swap.
+        'ped_demand': [1.0, 5.0, 5.0],
         'TRAFFIC_Bike': [0.0, 2.0, 2.0],
         'TRAFFIC_Car': [0.0, 8.0, 8.0],
         'clutter': [0.0, 3.0, 3.0],

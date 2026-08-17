@@ -21,7 +21,61 @@ Optional local setup: `python3 -m venv pipeline/cluster/.venv` and install
 the packages into it. `run_all.sh` prefers `pipeline/cluster/.venv/bin/python`
 when it exists.
 
-## 2. Cron setup
+`tippecanoe` is not on the cluster PATH and there is no system package for
+it. Create the tool env once per checkout:
+
+```
+conda create -y -p pipeline/cluster/.tools -c conda-forge tippecanoe
+```
+
+`run_all.sh` puts `pipeline/cluster/.tools/bin` on PATH when that directory
+exists, so no other setup is needed. `.tools/` is gitignored, so a fresh
+checkout must run the command above before its first real run.
+
+## 2. Running the pipeline
+
+### 2a. Slurm (use this on the cluster)
+
+Submit through Slurm, not from a shell. A run started with `nohup` from an
+interactive shell or an agent session dies when that session ends, and the
+loss is silent: the log is left at zero bytes and no stage output appears.
+A batch job survives the session and records its exit state in `sacct`.
+
+```
+bash pipeline/cluster/slurm_run.sh \
+  --config /share/your-lab/robotability/cluster_config.yaml \
+  --out /share/your-lab/robotability/snapshots/$(date -u +%Y-%m-%d)
+```
+
+Every argument passes through to `run_all.sh`. The job writes
+`slurm-<jobid>.log` next to the snapshot. Watch it with:
+
+```
+squeue -u $USER -n robotability
+tail -f <out>/slurm-<jobid>.log
+```
+
+Resources default to partition `ju`, 8 cpus, 64 GB, 12 h, and are
+overridden with `ROBOTABILITY_PARTITION`, `ROBOTABILITY_CPUS`,
+`ROBOTABILITY_MEM`, `ROBOTABILITY_TIME`, `ROBOTABILITY_JOB_NAME`. The
+prefix matters: Slurm exports its own `SLURM_*` variables into every job
+and interactive session, so a `SLURM_`-prefixed name would inherit the
+surrounding session's value.
+
+A full-city run takes about 25 minutes and peaks near 32 GB.
+
+### 2b. Resuming a failed run
+
+`--from-stage N` starts at stage N and keeps the earlier stages' output.
+The stages are 1 fetch, 2 segment, 3 build, 4 score, 5 emit. Segmentation
+alone costs about 45 minutes on the full city, so after a stage 3 failure
+resume rather than restart:
+
+```
+bash pipeline/cluster/slurm_run.sh --from-stage 3 --config <cfg> --out <dir>
+```
+
+### 2c. Cron setup
 
 One cron entry runs the whole pipeline. Edit the crontab of the pipeline
 user:
@@ -97,7 +151,22 @@ the scheduler's secret store). Never write the token into the repo, the
 config file, or a shell history file. Rotate the token every 90 days. Put a
 calendar reminder one week before expiry.
 
-Trigger the workflow with `repository_dispatch`:
+Set these in the config and export the token in the job environment:
+
+```yaml
+trigger_mode: dispatch
+github_repo: <owner>/<repo>
+```
+
+```
+export GITHUB_TOKEN=<TOKEN>
+```
+
+Stage 6 (`publish_snapshot.py`) then fires the dispatch itself after the
+validator passes. A `204` response means it was accepted. The publish
+workflow runs the validator again before it publishes.
+
+To send the dispatch by hand instead:
 
 ```
 curl -X POST \
@@ -107,30 +176,38 @@ curl -X POST \
   -d '{"event_type":"snapshot-ready"}'
 ```
 
-A `204` response means the dispatch was accepted. The publish workflow runs
-the validator again before it publishes.
-
 ### Option B - SSH deploy key (fallback)
 
 Use this mode when the cluster cannot call the GitHub API.
 
 1. Create an SSH key pair on the cluster. Add the public key to the repo as
    a deploy key with write access.
-2. Push the snapshot artifacts to the orphan branch `snapshots-incoming`:
+2. Set these in the config:
 
+   ```yaml
+   trigger_mode: push
+   git_remote: git@github.com:<owner>/<repo>.git
    ```
-   git clone --no-checkout git@github.com:<owner>/<repo>.git push-dir
-   cd push-dir
-   git checkout --orphan snapshots-incoming
-   git rm -rf . 2>/dev/null || true
-   cp /share/your-lab/robotability/snapshots/<date>/* .
-   git add segments.geojson segments.pmtiles features.parquet manifest.json
-   git commit -m "snapshot <date>"
-   git push origin snapshots-incoming
-   ```
+
+   Stage 6 then builds the orphan commit in a temporary directory and
+   force-pushes it. The branch carries one commit and is replaced whole,
+   so it never accumulates the large binary artifacts.
 
 3. A scheduled CI job polls the branch head every 6 hours and publishes
    valid snapshots. See the publish workflow (T6).
+
+To push by hand instead:
+
+```
+git clone --no-checkout git@github.com:<owner>/<repo>.git push-dir
+cd push-dir
+git checkout --orphan snapshots-incoming
+git rm -rf . 2>/dev/null || true
+cp /share/your-lab/robotability/snapshots/<date>/* .
+git add segments.geojson segments.pmtiles features.parquet manifest.json
+git commit -m "snapshot <date>"
+git push origin snapshots-incoming
+```
 
 ## 7. What CI rejects
 
@@ -145,12 +222,24 @@ trigger. It rejects:
 A rejected snapshot is never published. The cluster log shows the failed
 rule names. Fix the cause and rerun the pipeline.
 
+**The 48 hour clock.** `manifest_date_fresh` compares the manifest date
+against the time the validator runs, not the time the snapshot was built.
+CI revalidates before publishing, so a snapshot must reach CI within 48
+hours of its own date. Two consequences: do not build a snapshot and sit
+on it over a long weekend, and do not expect to republish last week's
+directory. Rebuild instead, which is cheap now that stage 3 takes about
+25 minutes.
+
 ## 8. Recovery checklist
 
 | Symptom | Action |
 | --- | --- |
 | `weights.csv drifted` error | Restore `pipeline/cluster/weights.csv` from the repo. Do not edit it. |
-| `tippecanoe is not on PATH` | Install tippecanoe on the cluster node. |
-| Validator rejects the row count | A full-city run must not use `--bbox`. Check the basemap fetch. |
+| `tippecanoe is not on PATH` | Create the tool env, see section 1. `run_all.sh` adds `.tools/bin` to PATH itself. |
+| `Too many open files` from tippecanoe | The batch node did not inherit the login shell's file limit. `run_all.sh` raises it; check that the job ran through `run_all.sh` and not a bare `emit_artifacts.py`. |
+| `JSON does not allow NaN`, or `Did not read any valid geometries` | A feature column reached the GeoJSON or the manifest as NaN. Aggregation must skip NaN the way `score_normalized` and `_finite_min_max` do. |
+| `tile N/X/Y has 200001 features, >200000` | The tippecanoe call lost `--no-feature-limit`. It must stay paired with `--drop-rate=0`. |
+| A run vanished with a zero-byte log | It was started from a shell instead of Slurm and died with the session. Use `slurm_run.sh`. |
+| Validator rejects the row count | A full-city run must not use `--bbox`. Check the basemap fetch. If the basemap itself grew, the band needs recalibrating in **both** `emit_artifacts.py` and `pipeline/contract/validate_snapshot.mjs`. |
 | Validator rejects the date | The node clock is wrong, or the snapshot is older than 48 h. Rerun. |
 | Partial snapshot | One lab input is missing. Check the dashcam root, the surveillance csv, and the DEM path in the config. |

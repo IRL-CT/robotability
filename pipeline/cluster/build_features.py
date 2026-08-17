@@ -18,6 +18,7 @@ import argparse
 import json
 import os
 import sys
+import time
 from typing import Dict, List, Optional, Sequence, Tuple
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -31,6 +32,32 @@ def _fill(values: Optional[list], n: int) -> List[float]:
     if values is None:
         return [0.0] * n
     return values
+
+
+def _timed(name: str, call, *args):
+    """Run one join, logging the start, the outcome, and the elapsed time.
+
+    The joins are slow and silent. A full-city build spends tens of
+    minutes inside them without printing anything, so a stalled run and a
+    working one look identical in the log. Naming each join on entry and
+    on exit makes a hang attributable to the join it is stuck in.
+
+    A join returning None means its input was missing, which the caller
+    records as a partial run. That shows here as 'MISSING' so the gap is
+    visible while the run is still going, not only in the final report.
+    """
+    pc.log(f'build_features: {name} ...')
+    start = time.monotonic()
+    try:
+        result = call(*args)
+    except Exception:
+        pc.log(f'build_features: {name} FAILED after '
+               f'{time.monotonic() - start:.1f}s')
+        raise
+    state = 'MISSING' if result is None else 'ok'
+    pc.log(f'build_features: {name} {state} '
+           f'({time.monotonic() - start:.1f}s)')
+    return result
 
 
 def build_real(work_dir: str, bbox: Optional[tuple], config: Dict,
@@ -51,24 +78,37 @@ def build_real(work_dir: str, bbox: Optional[tuple], config: Dict,
     def lab_blocked(name: str) -> bool:
         return simulate_missing == name
 
+    # shapely.to_wkt with rounding_precision=-1 is what Geometry.wkt calls
+    # per object, so the strings match exactly. Doing it in one call skips
+    # 491,894 round trips through the Python object layer.
+    import numpy as np
+    import shapely
+
     columns: Dict[str, list] = {
-        'segment_id': [int(v) for v in segments['segment_index']],
-        'geometry_wkt': segments.to_crs(pc.CRS_WGS).geometry.apply(
-            lambda g: g.wkt).tolist(),
-        'width': [float(v) for v in segments['width']],
+        'segment_id': segments['segment_index'].to_numpy().astype(int).tolist(),
+        'geometry_wkt': shapely.to_wkt(
+            np.asarray(segments.to_crs(pc.CRS_WGS).geometry.to_numpy(),
+                       dtype=object),
+            rounding_precision=-1).tolist(),
+        'width': segments['width'].to_numpy().astype(float).tolist(),
     }
 
-    clutter = features_join.join_street_furniture(segments, work_dir)
+    pc.log(f'build_features: joining {n} segments')
+
+    clutter = _timed('street_furniture',
+                     features_join.join_street_furniture, segments, work_dir)
     if clutter is None:
         missing.append('street_furniture')
     columns['clutter'] = _fill(clutter, n)
 
-    quality = features_join.join_surface_condition(segments, work_dir)
+    quality = _timed('surface_condition',
+                     features_join.join_surface_condition, segments, work_dir)
     if quality is None:
         missing.append('surface_condition_scorecard')
     columns['sidewalk_quality'] = _fill(quality, n)
 
-    comm = features_join.join_communication(segments, work_dir)
+    comm = _timed('communication',
+                  features_join.join_communication, segments, work_dir)
     if comm is None:
         missing.append('fcc_broadband')
         columns['4g_minup'] = [0.0] * n
@@ -77,18 +117,28 @@ def build_real(work_dir: str, bbox: Optional[tuple], config: Dict,
         columns['4g_minup'] = comm['4g_minup']
         columns['4g_mindown'] = comm['4g_mindown']
 
-    zonedist = features_join.join_zoning(segments, work_dir)
+    ped_demand = _timed('pedestrian_demand',
+                        features_join.join_pedestrian_demand,
+                        segments, work_dir)
+    if ped_demand is None:
+        missing.append('ped_demand')
+    columns['ped_demand'] = _fill(ped_demand, n)
+
+    zonedist = _timed('zoning', features_join.join_zoning, segments, work_dir)
     if zonedist is None:
         missing.append('zoning')
         zonedist = [''] * n
     columns['ZONEDIST'] = zonedist
 
-    curbs = joins_counts.join_curb_ramps(segments, work_dir)
+    curbs = _timed('curb_ramps',
+                   joins_counts.join_curb_ramps, segments, work_dir)
     if curbs is None:
         missing.append('curb_ramps')
     columns['CURBRAMP_count'] = _fill(curbs, n)
 
-    traffic_mgmt = joins_counts.join_traffic_management(segments, work_dir)
+    traffic_mgmt = _timed('traffic_management',
+                          joins_counts.join_traffic_management,
+                          segments, work_dir)
     if traffic_mgmt is None:
         missing.append('traffic_management_sources')
         traffic_mgmt = {}
@@ -97,17 +147,20 @@ def build_real(work_dir: str, bbox: Optional[tuple], config: Dict,
                 'barnes_intersections_count', 'leading_ped_intervals_count'):
         columns[col] = _fill(traffic_mgmt.get(col), n)
 
-    bike = joins_counts.join_bike_routes(segments, work_dir)
+    bike = _timed('bike_routes',
+                  joins_counts.join_bike_routes, segments, work_dir)
     if bike is None:
         missing.append('bike_routes')
     columns['highest_bike_lane_facility_class'] = _fill(bike, n)
 
-    collisions = joins_counts.join_collisions(segments, work_dir)
+    collisions = _timed('collisions',
+                        joins_counts.join_collisions, segments, work_dir)
     if collisions is None:
         missing.append('collisions')
     columns['num_peds_involved_in_collision'] = _fill(collisions, n)
 
-    stations = joins_counts.join_charging(segments, work_dir)
+    stations = _timed('citibike_stations',
+                      joins_counts.join_charging, segments, work_dir)
     if stations is None:
         missing.append('citibike_stations')
     columns['distance_to_nearest_station'] = _fill(stations, n)
@@ -115,7 +168,10 @@ def build_real(work_dir: str, bbox: Optional[tuple], config: Dict,
     dashcam_root = lab.get('dashcam_root', '')
     traffic = None
     if dashcam_root and not lab_blocked('dashcam_detections'):
-        traffic = lab_inputs.read_dashcam_traffic(dashcam_root, segments)
+        traffic = _timed('dashcam_traffic', lab_inputs.read_dashcam_traffic,
+                         dashcam_root, segments)
+    else:
+        pc.log('build_features: dashcam_traffic skipped (no lab path)')
     if traffic is None:
         missing.append('dashcam_detections')
         for col in ('TRAFFIC_Pedestrian', 'TRAFFIC_Bike', 'TRAFFIC_Car'):
@@ -126,7 +182,10 @@ def build_real(work_dir: str, bbox: Optional[tuple], config: Dict,
     surveillance_csv = lab.get('surveillance_csv', '')
     cameras = None
     if surveillance_csv and not lab_blocked('surveillance_values'):
-        cameras = lab_inputs.read_surveillance(surveillance_csv, segments)
+        cameras = _timed('surveillance', lab_inputs.read_surveillance,
+                         surveillance_csv, segments)
+    else:
+        pc.log('build_features: surveillance skipped (no lab path)')
     if cameras is None:
         missing.append('surveillance_values')
     columns['n_cameras_median'] = _fill(cameras, n)
@@ -134,7 +193,11 @@ def build_real(work_dir: str, bbox: Optional[tuple], config: Dict,
     dem_path = lab.get('dem_path', '')
     elevations = None
     if dem_path and not lab_blocked('dem'):
-        elevations = lab_inputs.sample_dem(dem_path, segments)
+        # The slowest join. It reads a 3.4 GB raster once per segment
+        # centroid, so on the full city this is the long silent stretch.
+        elevations = _timed('dem', lab_inputs.sample_dem, dem_path, segments)
+    else:
+        pc.log('build_features: dem skipped (no lab path)')
     if elevations is None:
         missing.append('dem')
     columns['ft_above_sea'] = _fill(elevations, n)
@@ -142,11 +205,14 @@ def build_real(work_dir: str, bbox: Optional[tuple], config: Dict,
     columns['avg_speed_limit'] = [25.0] * n
     speed_limits_path = os.path.join(work_dir, 'data/dot_VZV_Speed_Limits.csv')
     if os.path.isfile(speed_limits_path):
-        joined = joins_counts.join_speed_limits(segments, speed_limits_path)
+        joined = _timed('speed_limits', joins_counts.join_speed_limits,
+                        segments, speed_limits_path)
         if joined is not None:
             columns['avg_speed_limit'] = joined
     else:
+        pc.log('build_features: speed_limits MISSING (file absent)')
         missing.append('speed_limits')
+    pc.log(f'build_features: all joins done, {len(missing)} missing')
     return columns, missing
 
 

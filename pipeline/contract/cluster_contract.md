@@ -19,11 +19,27 @@ built in task T5).
 
 | Input | Path pattern | Format | Used for |
 | --- | --- | --- | --- |
-| Dashcam detections | `<LAB_DASHCAM_ROOT>/{day}/detections.csv` | One CSV per day. Columns `0`, `1`, `2` hold detection counts (see `traffic.py`). | pedestrian_density, vehicle_traffic, bicycle_traffic |
-| Dashcam metadata | `<LAB_DASHCAM_ROOT>/{day}/md.csv` | One CSV per day. Frame metadata. | Same as above |
+| Dashcam detections | `<LAB_DASHCAM_ROOT>/{day}/detections.csv` | One CSV per day. Columns `0`, `1`, `2` hold detection counts (see `traffic.py`). **Frozen at August 2023**, see note below. | vehicle_traffic, bicycle_traffic |
+| Dashcam metadata | `<LAB_DASHCAM_ROOT>/{day}/md.csv` | One CSV per day. Frame metadata. **Frozen at August 2023.** | Same as above |
+| DOT Pedestrian Demand Map | `data/ped_demand_nyc.geojson` (`fwpa-qxaf`) | GeoJSON, one record per city street, `rank` 1 (Global, busiest) to 5 (Citywide Baseline). Maintained by DOT. | pedestrian_density |
 | Surveillance camera values | `<LAB_SURVEILLANCE_ROOT>/counts_per_intersections.csv` | Camera counts per intersection. From the "Surveilling the Surveillance" dataset. | surveillance_coverage |
 | NYC 1-foot DEM | `<LAB_DEM_ROOT>/` | Raster (unzipped `NYC_DEM_1ft_Int`). | slope_gradient |
 | Shared work area | `/share/<group>/robotability/<date>/` | Intermediate and output files. | All stages |
+
+**Input freshness.** Every input above refreshes with the snapshot except
+the dashcam collection, which is fifteen fixed days in August 2023 chosen
+to match the `CUTOFF` of 2023-08-31 in the research notebook. The lab root
+holds 27 day directories in all, running to late October 2023; the unused
+ones are listed in `lab_inputs.DASHCAM_DAYS`.
+`bicycle_traffic` and `vehicle_traffic` therefore describe
+2023 conditions in every snapshot, whatever date the manifest carries,
+and together they hold 7.8% of the model weight. `pedestrian_density`
+previously shared that limitation and now reads the DOT Pedestrian Demand
+Map instead, which DOT maintains. No citywide bicycle or vehicle volume
+model exists to do the same for the remaining two: the public count
+datasets (`ct66-47at`, `7ym2-wayt`) are sparse sensor readings, not
+citywide coverage. Treat those two features as a 2023 baseline when
+reading a snapshot.
 
 If a lab input is missing, the cluster must set `partial: true` in the
 manifest (see section 5).
@@ -205,7 +221,7 @@ errors exit with code 2.
 | `manifest_missing` | `manifest.json` exists. | Section 2 |
 | `manifest_parse` | `manifest.json` is a JSON object. | Section 3.4 |
 | `manifest_schema` | Every field exists with the right type. | Section 3.4 |
-| `row_count_band` | `row_count` lies in [460350, 469650]. The band is the ~465,000 NYC sidewalk segments with a 1% margin. | NYC sidewalk count |
+| `row_count_band` | `row_count` lies in [486975, 496813]. One row per centerline segment, a 1% margin around the 491,894 segments of the 2026 basemap. Superseded [460350, 469650], which bounded the research's point-sampled count of 464,968 rather than the segment count this pipeline emits. | NYC sidewalk count |
 | `manifest_date_fresh` | The manifest date lies within 48h of the validation time. The date parses as UTC midnight. | Freshness policy |
 | `partial_flag` | `partial` is false. | Section 5 |
 | `weights_sha256` | The hash equals the pinned `feature_weights.csv` hash. The weights must not change. | `feature_weights.csv` |

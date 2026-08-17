@@ -133,7 +133,16 @@ def normalize_features(
     """
     out: Dict[str, List[float]] = {}
     out['sidewalk_width'] = min_max_normalize(raw['width'])
-    out['pedestrian_density'] = min_max_normalize(raw['TRAFFIC_Pedestrian'])
+    # pedestrian_density now comes from the DOT Pedestrian Demand Map
+    # rather than the dashcam pedestrian counts. features_join returns it
+    # already turned the right way round, 1 quiet to 5 busy, so this
+    # normalizes exactly as the dashcam column did. Two consequences worth
+    # knowing: the feature is now a five level ordinal rather than a
+    # continuous mean, and it covers every segment rather than the 83%
+    # a dashcam happened to drive past. raw['TRAFFIC_Pedestrian'] is still
+    # built and still written to the raw table, it just no longer feeds
+    # the score.
+    out['pedestrian_density'] = min_max_normalize(raw['ped_demand'])
     out['street_furniture_density'] = min_max_normalize(raw['clutter'])
     out['sidewalk_roughness'] = [1.0] * n
     surface = min_max_normalize(raw['sidewalk_quality'])
@@ -172,6 +181,12 @@ def normalize_features(
     bike = min_max_normalize(raw['highest_bike_lane_facility_class'])
     out['bike_lane_availability'] = _fillna(bike, 0.0)
     out['gps_signal_strength'] = [1.0] * n
+    # The last two features still fed by the dashcam collection, and so
+    # the last two frozen at August 2023 while the rest of the snapshot
+    # tracks the current basemap and current public data. They are NaN
+    # for the 17% of segments no dashcam drove past; score_normalized
+    # skips those terms. See the DASHCAM_DAYS note in lab_inputs.py for
+    # why no citywide replacement exists.
     out['bicycle_traffic'] = min_max_normalize(raw['TRAFFIC_Bike'])
     out['vehicle_traffic'] = min_max_normalize(raw['TRAFFIC_Car'])
     out['digital_map_existence'] = [1.0] * n
@@ -189,8 +204,19 @@ def score_normalized(
 ) -> List[float]:
     """Sum polarity * normalized * weight over the 19 features.
 
-    Port of score.ipynb cell 97. NaN never reaches this function. The
-    normalize step fills every position first.
+    Port of score.ipynb cell 97, which aggregates with
+    DataFrame.sum(axis=1). That call defaults to skipna=True, so a NaN
+    feature contributes nothing and the row still scores.
+
+    NaN does reach here. The three dashcam features carry it by design:
+    PREPROCESS_pedestrian_density and its bike and vehicle counterparts
+    min-max normalize without filling, and this port matches them, so any
+    segment no dashcam ever drove past holds NaN in all three. That was
+    84,260 of 491,894 segments on the 2026 basemap. Summing those
+    positions arithmetically propagated NaN into 17% of the scores, which
+    then reached the GeoJSON as the literal NaN token. That is not valid
+    JSON, and tippecanoe rejected the whole file rather than one feature:
+    "Did not read any valid geometries", zero tiles built.
     """
     if weights is None:
         weights = load_weights()
@@ -199,7 +225,10 @@ def score_normalized(
     for i in range(n):
         total = 0.0
         for f in FEATURES:
-            total += POLARITIES[f] * normalized[f][i] * weights[f]
+            value = normalized[f][i]
+            if _is_nan(value):
+                continue
+            total += POLARITIES[f] * value * weights[f]
         scores.append(total)
     return scores
 

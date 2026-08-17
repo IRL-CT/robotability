@@ -10,12 +10,24 @@ returns None. build_features.py records the gap and fills it with zeros.
 
 import json
 import os
-from typing import List, Optional
+from typing import List, Optional, Sequence
 
 import pipeline_common as pc  # noqa: E402 (import path set by caller)
 
 BUFFER_50_FT = 50.0
 BUFFER_25_FT = 25.0
+# Scaffolding sits at a wider radius than the rest of the furniture.
+# street_furniture.ipynb buffers the sidewalk by 25 ft in cell 5 and then
+# buffers the shed points by a further 100 ft in cell 49, so a shed counts
+# when it lies within 125 ft of the segment. _buffered_counts buffers only
+# the points, so the faithful single-sided radius is the sum.
+BUFFER_125_FT = BUFFER_25_FT + 100.0
+
+# Per-dataset buffer overrides for FURNITURE_SPECS. Anything absent here
+# uses BUFFER_25_FT, which is cell 5's sidewalk buffer against raw points.
+FURNITURE_BUFFER_FT = {
+    'scaffolding_permit_count': BUFFER_125_FT,
+}
 
 # Clutter weights from street_furniture.ipynb cell 56.
 CLUTTER_WEIGHTS = {
@@ -47,6 +59,7 @@ FURNITURE_SPECS = {
     'citybench_count': ('data/street_furniture/citybench_nyc.csv', 'xy', '', 'Longitude', 'Latitude'),
     'bicycle_parking_shelter_count': ('data/street_furniture/bicycle_parking_shelters_nyc.csv', 'wkt', 'the_geom', '', ''),
     'bicycle_rack_count': ('data/street_furniture/bicycle_racks_nyc', 'dir', '', '', ''),
+    'scaffolding_permit_count': ('data/street_furniture/dob_active_sheds.csv', 'xy', '', 'Longitude Point', 'Latitude Point'),
     'tree_count': ('data/street_furniture/forestry_tree_points_nyc.csv', 'xy', '', 'longitude', 'latitude'),
     'newsstand_count': ('data/street_furniture/newsstands_nyc.csv', 'wkt', 'the_geom', '', ''),
     'parking_meter_count': ('data/street_furniture/parking_meters_nyc.csv', 'wkt', 'Location', '', ''),
@@ -54,6 +67,19 @@ FURNITURE_SPECS = {
     'street_sign_count': ('data/street_furniture/Street_Sign_Work_Orders.csv', 'xy_proj', '', 'sign_x_coord', 'sign_y_coord'),
     'alarm_call_box_count': ('data/street_furniture/In-Service_Alarm_Box_Locations.csv', 'wkt', 'Location Point', '', ''),
 }
+
+
+def extracted_dir(path: str) -> str:
+    """Resolve the directory fetch_public.py unzipped an archive into.
+
+    fetch_public.unzip_dataset writes a non-.zip destination to
+    <dest>_extracted and leaves <dest> as the downloaded archive. The
+    FURNITURE_SPECS paths and join_zoning name <dest>, so prefer the
+    _extracted directory when it exists and fall back to the plain path
+    for datasets that arrive already unpacked.
+    """
+    candidate = path + '_extracted'
+    return candidate if os.path.isdir(candidate) else path
 
 
 def load_segments(work_dir: str, bbox: Optional[tuple]):
@@ -65,8 +91,10 @@ def load_segments(work_dir: str, bbox: Optional[tuple]):
     segment id is the row index, as in dataset.ipynb.
     """
     import geopandas as gpd
+    import numpy as np
     import pandas as pd
-    from shapely import box, wkt
+    import shapely
+    from shapely import box
 
     path = os.path.join(work_dir, 'data/sidewalk_segments.parquet')
     if not os.path.isfile(path):
@@ -75,16 +103,18 @@ def load_segments(work_dir: str, bbox: Optional[tuple]):
     import pyarrow.parquet as pq
 
     table = pq.read_table(path)
-    segments = pd.DataFrame({
-        'geometry_wkt': table.column('geometry_wkt').to_pylist(),
-        'width': [float(v) for v in table.column('width').to_pylist()],
-    })
+    # Parse the whole WKT column in one shapely call and take width
+    # straight off the arrow buffer. The row-wise apply(wkt.loads) and
+    # per-value float() this replaces ran 491,894 times each on a
+    # full-city basemap, once per build.
+    geometry = shapely.from_wkt(
+        np.asarray(table.column('geometry_wkt').to_pylist(), dtype=object))
     segments = gpd.GeoDataFrame(
-        segments, geometry=segments['geometry_wkt'].apply(wkt.loads),
-        crs=pc.CRS_WGS,
+        {'width': table.column('width').to_numpy(zero_copy_only=False)
+                       .astype(float)},
+        geometry=geometry, crs=pc.CRS_WGS,
     ).to_crs(pc.CRS_PROJ)
     segments['segment_index'] = segments.index
-    segments = segments.drop(columns=['geometry_wkt'])
     if bbox is not None:
         minlon, minlat, maxlon, maxlat = bbox
         clip_box = gpd.GeoDataFrame(
@@ -94,17 +124,33 @@ def load_segments(work_dir: str, bbox: Optional[tuple]):
     return segments.reset_index(drop=True)
 
 
-def _points_from_spec(path: str, kind: str, geom_col: str, lon_col: str, lat_col: str):
-    """Read one point dataset and project it to EPSG:2263."""
+def _points_from_spec(path: str, kind: str, geom_col: str, lon_col: str,
+                      lat_col: str, keep_cols: Sequence[str] = ()):
+    """Read one point dataset and project it to EPSG:2263.
+
+    Only the geometry columns are read, plus anything in keep_cols that a
+    caller filters on afterwards. Reading the whole file is expensive
+    twice over here: the work dir sits on NFS and
+    Street_Sign_Work_Orders.csv alone is 2.7 GB across 25 columns when
+    the join needs two of them, and every column that survives the read
+    is then carried through the spatial join as join payload.
+    """
     import geopandas as gpd
+    import numpy as np
     import pandas as pd
-    from shapely import wkt
+    import shapely
 
     if kind == 'dir':
-        return gpd.read_file(path).to_crs(pc.CRS_PROJ)
-    frame = pd.read_csv(path)
+        return gpd.read_file(extracted_dir(path)).to_crs(pc.CRS_PROJ)
     if kind == 'wkt':
-        geom = frame[geom_col].apply(wkt.loads)
+        usecols = [geom_col, *keep_cols]
+    else:
+        usecols = [lon_col, lat_col, *keep_cols]
+    frame = pd.read_csv(path, usecols=usecols)
+    if kind == 'wkt':
+        # shapely.from_wkt parses the whole column in one call. The
+        # row-wise Series.apply(wkt.loads) it replaces ran once per point.
+        geom = shapely.from_wkt(frame[geom_col].to_numpy(dtype=object))
         points = gpd.GeoDataFrame(frame, geometry=geom, crs=pc.CRS_WGS)
     elif kind == 'xy':
         points = gpd.GeoDataFrame(
@@ -163,7 +209,8 @@ def join_street_furniture(segments, work_dir: str) -> Optional[List[float]]:
         except Exception as e:  # noqa: BLE001 - a bad file must not kill the run
             pc.log(f'features_join: street furniture {name} unreadable: {e}')
             return None
-        counts[name] = _buffered_counts(segments, points, BUFFER_25_FT)
+        counts[name] = _buffered_counts(
+            segments, points, FURNITURE_BUFFER_FT.get(name, BUFFER_25_FT))
     n = len(segments)
     clutter = [0.0] * n
     for name, weight in CLUTTER_WEIGHTS.items():
@@ -233,14 +280,93 @@ def join_communication(segments, work_dir: str) -> Optional[dict]:
     }
 
 
+# DOT Pedestrian Demand Map rank values, busiest first.
+PED_DEMAND_RANKS = {1: 'Global', 2: 'Regional', 3: 'Neighborhood',
+                    4: 'Community Connector', 5: 'Citywide Baseline'}
+PED_DEMAND_BASELINE_RANK = 5
+# How far a sidewalk segment may sit from its street centerline and still
+# take that street's category. Measured over all 491,894 segments of the
+# 2026 basemap: median 24 ft, p75 52 ft, p90 231 ft. Cumulative coverage
+# is 74.6% within 50 ft, 80.5% within 100, 85.2% within 150, 88.4% within
+# 200 and 92.3% within 300.
+#
+# 200 ft sits past the knee of that curve. The DOT map covers mapped city
+# streets, so the segments left over are mostly sidewalks with no street
+# beside them: park paths, campus and housing-development walkways. A
+# street 300 ft away is weak evidence about such a path, so widening the
+# radius buys coverage by weakening the match.
+PED_DEMAND_MAX_FT = 200.0
+
+
+def join_pedestrian_demand(segments, work_dir: str) -> Optional[List[float]]:
+    """Pedestrian demand level per segment, 1 quiet to 5 busy.
+
+    Reads the DOT Pedestrian Demand Map, which assigns every city street
+    one of five categories modelled from retail, office and residential
+    density, restaurants, parks, school frontages, subway ridership and
+    hospitals. Each sidewalk segment takes the category of the street
+    centerline nearest to it.
+
+    The rank column in the source runs the other way from demand: rank 1
+    is a Global Corridor, the busiest, and rank 5 is the Citywide
+    Baseline, the quiet default. This returns 6 - rank so the value rises
+    with demand, which is what pedestrian_density needs. Reading rank
+    straight through would inverse the highest weighted feature in the
+    model.
+
+    A segment with no street inside PED_DEMAND_MAX_FT takes the baseline
+    level. DOT applies that category to streets with relatively little
+    pedestrian activity, which is the right reading of a sidewalk that
+    sits far from any mapped street, and it keeps the column free of NaN.
+    """
+    import geopandas as gpd
+
+    path = os.path.join(work_dir, 'data/ped_demand_nyc.geojson')
+    if not os.path.isfile(path):
+        return None
+    demand = gpd.read_file(path, columns=['rank']).to_crs(pc.CRS_PROJ)
+    demand = demand.dropna(subset=['rank'])
+    if demand.empty:
+        return None
+    merged = gpd.sjoin_nearest(
+        segments[['geometry']], demand[['geometry', 'rank']],
+        how='left', distance_col='ped_demand_dist_ft',
+        max_distance=PED_DEMAND_MAX_FT,
+    )
+    # sjoin_nearest keeps every tied street. min() takes the busiest of
+    # them, since rank counts down as demand goes up.
+    nearest = merged.groupby(level=0)['rank'].min()
+    baseline = float(PED_DEMAND_BASELINE_RANK)
+    out: List[float] = []
+    for i in range(len(segments)):
+        rank = nearest.get(i, baseline)
+        if rank is None or (isinstance(rank, float) and rank != rank):
+            rank = baseline
+        out.append(float(PED_DEMAND_BASELINE_RANK + 1 - float(rank)))
+    return out
+
+
 def join_zoning(segments, work_dir: str) -> Optional[List[str]]:
     """Join the zoning district code. Port of dataset.ipynb cell 44."""
     import geopandas as gpd
 
-    path = os.path.join(work_dir, 'data/zoning_nyc')
+    path = extracted_dir(os.path.join(work_dir, 'data/zoning_nyc'))
     if not os.path.isdir(path):
         return None
-    zoning = gpd.read_file(path).to_crs(pc.CRS_PROJ)
+    # The retired kdig-pewd shapefile unzipped to a directory that
+    # read_file could open directly, with a lowercase zonedist column.
+    # Its replacement mm69-vrje is a file geodatabase holding six feature
+    # classes, so name the zoning district layer and normalize the case.
+    gdb = os.path.join(path, 'zoning.gdb')
+    if os.path.isdir(gdb):
+        zoning = gpd.read_file(gdb, layer='nyzd')
+    else:
+        zoning = gpd.read_file(path)
+    zoning.columns = [c.lower() if c != zoning.geometry.name else c
+                      for c in zoning.columns]
+    if 'zonedist' not in zoning.columns:
+        return None
+    zoning = zoning.to_crs(pc.CRS_PROJ)
     merged = gpd.sjoin(segments[['geometry']], zoning[['geometry', 'zonedist']],
                        how='left', predicate='intersects')
     zonedist = merged.groupby(level=0)['zonedist'].first()

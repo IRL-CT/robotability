@@ -26,8 +26,22 @@ work_dir: /share/your-lab/robotability/work
 output_dir: /share/your-lab/robotability/snapshots
 
 # How the cluster triggers the CI publish workflow after a successful run.
-#   dispatch  - call the GitHub repository_dispatch API (needs a token).
-#   push      - push the orphan branch snapshots-incoming (SSH deploy key).
-#   none      - do not trigger. A scheduled CI job polls instead.
-# See RUNBOOK.md for the setup of each mode.
+# Stage 6, publish_snapshot.py, reads this. It runs only when the contract
+# validator has passed, so no mode can publish a rejected snapshot.
+#   dispatch  - call the GitHub repository_dispatch API. Needs github_repo
+#               below and GITHUB_TOKEN in the job environment.
+#   push      - force-push the orphan branch snapshots-incoming. Needs
+#               git_remote below and an SSH deploy key on the node.
+#   none      - do not trigger. Nothing publishes unless something else
+#               pushes snapshots-incoming for the 6-hourly CI poll to find.
+# See RUNBOOK.md section 6 for the setup of each mode.
 trigger_mode: dispatch
+
+# Required when trigger_mode is dispatch. The owner/name form.
+github_repo: your-org/robotability
+
+# Required when trigger_mode is push. The SSH form.
+git_remote: git@github.com:your-org/robotability.git
+
+# Credentials never belong in this file. dispatch reads GITHUB_TOKEN from
+# the environment; push uses the node's SSH key.

@@ -113,8 +113,16 @@ export const POLARITIES = {
 export const WEIGHTS_SHA256 =
   '6278272614fe5e012874a2804e9e576f21f5a9cd4b952eb9296ccb6932965beb';
 
-export const ROW_COUNT_MIN = 460350;
-export const ROW_COUNT_MAX = 469650;
+// One row per centerline segment, 1% either side of 491894 measured on
+// the 2026 basemap. The earlier band, [460350, 469650], bounded the
+// research count of 464968, which came from sampling points every 50 ft
+// along each segment and averaging back, dropping segments too short to
+// hold a point. This pipeline scores segments directly and emits one row
+// each, so it would exceed the old ceiling even on the 2023 basemap
+// (476398 rows). See pipeline/cluster/emit_artifacts.py, which keeps the
+// same two numbers and must be edited alongside this file.
+export const ROW_COUNT_MIN = 486975;
+export const ROW_COUNT_MAX = 496813;
 export const SCORE_MIN = -0.4049;
 export const SCORE_MAX = 0.5952;
 export const FEATURE_MIN = 0;
@@ -893,7 +901,7 @@ function validateSnapshot(dir, opts) {
   for (const d of schemaErrors) fail('manifest_schema', d);
   if (schemaErrors.length > 0) return done();
 
-  // Rule row_count_band: full city runs fall in [460350, 469650].
+  // Rule row_count_band: full city runs fall in [486975, 496813].
   // --relax-row-count replaces the band with one exact value.
   if (opts.relaxRowCount !== null) {
     if (m.row_count !== opts.relaxRowCount) {

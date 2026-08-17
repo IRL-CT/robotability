@@ -61,9 +61,17 @@ def midpoints(segments):
 
 
 def test_rectangle_width() -> None:
-    """A 200 ft x 10 ft rectangle yields axis segments ~10 ft wide."""
+    """A 200 ft x 10 ft rectangle yields axis segments ~10 ft wide.
+
+    The centerline of a rectangle is straight, so simplify collapses it
+    to one 2-point segment spanning the long axis. One segment is the
+    right answer here, not a floor to raise: an earlier revision asked
+    for >= 3, which only passed because the simplify tolerance was
+    3.28x too small and left Voronoi jitter in the line. The width and
+    axis checks below carry the real assertion.
+    """
     segments = sb.segment_polygon_proj(rect_poly(0.0, 0.0, 200.0, 10.0))
-    check_bool('rectangle yields segments', len(segments) >= 3,
+    check_bool('rectangle yields segments', len(segments) >= 1,
                f'{len(segments)} segments')
     if not segments:
         return
@@ -84,13 +92,19 @@ def test_rectangle_width() -> None:
 
 
 def test_l_shape_coverage() -> None:
-    """An L-shaped polygon yields segments in both arms."""
+    """An L-shaped polygon yields segments in both arms.
+
+    Each arm is straight, so simplify leaves one 2-point segment per
+    arm. Two is the right answer. The arm coverage checks below are
+    what this test is actually for. See test_rectangle_width on why the
+    earlier >= 4 floor was an artifact of the wrong simplify tolerance.
+    """
     from shapely import wkt
 
     l_poly = wkt.loads('POLYGON ((0 0, 100 0, 100 10, 10 10, 10 100, '
                        '0 100, 0 0))')
     segments = sb.segment_polygon_proj(l_poly)
-    check_bool('L shape yields segments', len(segments) >= 4,
+    check_bool('L shape yields segments', len(segments) >= 2,
                f'{len(segments)} segments')
     if not segments:
         return

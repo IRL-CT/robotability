@@ -75,6 +75,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     required = [
         'segment_id', 'geometry_wkt', 'ft_above_sea', 'width',
         'TRAFFIC_Pedestrian', 'TRAFFIC_Bike', 'TRAFFIC_Car', 'clutter',
+        'ped_demand',
         'sidewalk_quality', '4g_minup', '4g_mindown',
         'distance_to_nearest_station', 'CURBRAMP_count', 'ZONEDIST',
         'n_cameras_median', 'avg_speed_limit',
