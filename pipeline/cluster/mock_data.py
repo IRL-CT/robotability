@@ -24,6 +24,15 @@ SEGMENT_HALF_LEN_DEG = 0.00004
 ZONEDIST_CHOICES = ('M1-4', 'R6', 'C4-2', 'PARK', '')
 SPEED_LIMIT_CHOICES = (25.0, 30.0, 35.0, float('nan'))
 BIKE_CLASS_CHOICES = (0.0, 0.5, 1.0, 2.0, 3.0, float('nan'))
+# ped_demand holds 6 - rank from the DOT Pedestrian Demand Map, so 5 is
+# a Global Corridor and 1 is Citywide Baseline. The real distribution is
+# heavily weighted to baseline: 64975 of about 127000 DOT segments are
+# baseline, and only 851 are Global Corridors. These repeats approximate
+# that shape so a mock run exercises a realistic spread instead of a
+# uniform one. There is no NaN member: every segment takes a level, and
+# the ones with no DOT street within 200 ft take baseline. See
+# features_join.join_pedestrian_demand.
+PED_DEMAND_CHOICES = (1.0, 1.0, 1.0, 1.0, 2.0, 2.0, 3.0, 4.0, 5.0)
 
 
 def generate_mock(bbox: Tuple[float, float, float, float], seed: int,
@@ -88,6 +97,10 @@ def generate_mock(bbox: Tuple[float, float, float, float], seed: int,
         'highest_bike_lane_facility_class': [rng.choice(BIKE_CLASS_CHOICES) for _ in range(n)],
         'num_peds_involved_in_collision': [
             float('nan') if i % 11 == 5 else float(rng.randint(0, 3)) for i in range(n)],
+        # Keep this entry last. Each column draws from the shared rng in
+        # the order it appears here, so inserting one higher up shifts
+        # every column below it and changes the mock bytes for no reason.
+        'ped_demand': [float(rng.choice(PED_DEMAND_CHOICES)) for _ in range(n)],
     }
     missing = [name for name, flag in (
         ('dashcam_detections', dashcam_missing),

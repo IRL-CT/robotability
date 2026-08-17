@@ -87,11 +87,42 @@ if [ -d "$SCRIPT_DIR/.tools/bin" ]; then
   export PATH
 fi
 
+# Find node for the contract validator. emit_artifacts.py calls `node`
+# directly, so a missing one fails stage 5 with FileNotFoundError after
+# the whole snapshot has already been built. The tool env above is the
+# supported place to put it. The fallback covers the common case where
+# node came from nvm: an interactive shell sources nvm and finds it, a
+# batch job does not, so the binary is present on shared storage and
+# absent from PATH, and the pipeline looks broken only on the cluster.
+if ! command -v node >/dev/null 2>&1; then
+  nvm_versions="${NVM_DIR:-$HOME/.nvm}/versions/node"
+  if [ -d "$nvm_versions" ]; then
+    nvm_bin="$(ls -d "$nvm_versions"/*/bin 2>/dev/null | sort -V | tail -1)"
+    if [ -n "$nvm_bin" ] && [ -x "$nvm_bin/node" ]; then
+      PATH="$PATH:$nvm_bin"
+      export PATH
+    fi
+  fi
+fi
+if command -v node >/dev/null 2>&1; then
+  echo "run_all: node $(node --version) from $(command -v node)"
+else
+  echo "run_all: WARNING node not found. Stage 5 cannot run the contract" >&2
+  echo "run_all: validator. See RUNBOOK section 1 for the tool env." >&2
+fi
+
 # Raise the open file limit for tippecanoe. It shards a city-scale tile
 # build across many temporary files at once and dies with "Too many open
 # files" under a low limit. A batch job does not always inherit the login
 # shell's limit, so set it here rather than assuming. Best effort: a
 # shell that refuses the raise still runs, it just keeps its old limit.
+#
+# This is headroom, not the fix for a wide node. tippecanoe sizes its
+# shard count from the machine's CPU count and ignores the cgroup, and
+# an over-threaded build fails either way: as "Too many open files"
+# under a low limit, or as "N shards not a power of 2" once the limit is
+# high enough to reach the assert. emit_artifacts.build_pmtiles caps the
+# thread count, which is what actually fixes it.
 if [ -n "${BASH_VERSION:-}" ]; then
   hard_nofile="$(ulimit -Hn 2>/dev/null || echo '')"
   if [ -n "$hard_nofile" ] && [ "$hard_nofile" != "unlimited" ]; then

@@ -134,8 +134,39 @@ def _finite_min_max(name: str, values: list) -> dict:
     return {'min': min(finite), 'max': max(finite)}
 
 
+def _tippecanoe_cpus() -> int:
+    """Return how many CPUs this process may actually use.
+
+    Slurm gives the job a cgroup, so the count of usable CPUs is much
+    smaller than the machine's. Prefer what the scheduler granted, then
+    the affinity mask, then the machine.
+    """
+    granted = os.environ.get('SLURM_CPUS_PER_TASK')
+    if granted and granted.isdigit() and int(granted) > 0:
+        return int(granted)
+    try:
+        return max(1, len(os.sched_getaffinity(0)))
+    except AttributeError:
+        return max(1, os.cpu_count() or 1)
+
+
 def build_pmtiles(geojson_path: str, out_path: str) -> None:
     """Run tippecanoe. Stop with a clean error when it fails or hangs."""
+    # Cap tippecanoe's thread count to the CPUs this job was granted.
+    # tippecanoe sizes its work from sysconf(_SC_NPROCESSORS_ONLN), the
+    # machine's online CPU count, which ignores the cgroup. It then
+    # derives a shard count from that and asserts the shard count is a
+    # power of two. On a 384 CPU node inside an 8 CPU allocation the
+    # derivation produced 745 and the build died with
+    # "Internal error: 745 shards not a power of 2" after writing
+    # nothing usable; the same GeoJSON built cleanly on a 56 CPU node.
+    # So the failure follows node width, not the input, and this env var
+    # is the only lever tippecanoe exposes over it. An explicit value in
+    # the environment wins, so an operator can still tune it by hand.
+    env = dict(os.environ)
+    env.setdefault('TIPPECANOE_MAX_THREADS', str(_tippecanoe_cpus()))
+    pc.log(f'emit_artifacts: TIPPECANOE_MAX_THREADS='
+           f'{env["TIPPECANOE_MAX_THREADS"]}')
     args = [
         'tippecanoe',
         f'--output={out_path}',
@@ -160,7 +191,7 @@ def build_pmtiles(geojson_path: str, out_path: str) -> None:
     pc.log(f'emit_artifacts: running {" ".join(args)}')
     try:
         proc = subprocess.run(args, capture_output=True, text=True,
-                              timeout=TIPPECANOE_TIMEOUT_S)
+                              timeout=TIPPECANOE_TIMEOUT_S, env=env)
     except FileNotFoundError:
         pc.die('tippecanoe is not on PATH. Install it (brew install tippecanoe).')
     except subprocess.TimeoutExpired:

@@ -21,12 +21,18 @@ Optional local setup: `python3 -m venv pipeline/cluster/.venv` and install
 the packages into it. `run_all.sh` prefers `pipeline/cluster/.venv/bin/python`
 when it exists.
 
-`tippecanoe` is not on the cluster PATH and there is no system package for
-it. Create the tool env once per checkout:
+Neither `tippecanoe` nor `node` is on the cluster PATH. Create the tool env
+once per checkout:
 
 ```
-conda create -y -p pipeline/cluster/.tools -c conda-forge tippecanoe
+conda create -y -p pipeline/cluster/.tools -c conda-forge tippecanoe nodejs
 ```
+
+`node` in particular is easy to get wrong. An interactive shell picks it up
+from nvm in the user's home directory, so it looks installed; a batch job
+does not source nvm and the validator dies with
+`FileNotFoundError: 'node'` after the whole snapshot has been built. Put it
+in the tool env rather than relying on the login environment.
 
 `run_all.sh` puts `pipeline/cluster/.tools/bin` on PATH when that directory
 exists, so no other setup is needed. `.tools/` is gitignored, so a fresh
@@ -236,9 +242,10 @@ directory. Rebuild instead, which is cheap now that stage 3 takes about
 | --- | --- |
 | `weights.csv drifted` error | Restore `pipeline/cluster/weights.csv` from the repo. Do not edit it. |
 | `tippecanoe is not on PATH` | Create the tool env, see section 1. `run_all.sh` adds `.tools/bin` to PATH itself. |
-| `Too many open files` from tippecanoe | The batch node did not inherit the login shell's file limit. `run_all.sh` raises it; check that the job ran through `run_all.sh` and not a bare `emit_artifacts.py`. |
+| `Too many open files` from tippecanoe | Two causes, and they look identical. First, the batch node did not inherit the login shell's file limit: `run_all.sh` raises it, so check the job ran through `run_all.sh` and not a bare `emit_artifacts.py`. Second, an over-threaded build on a wide node opens too many files whatever the limit — see the shard row below. |
 | `JSON does not allow NaN`, or `Did not read any valid geometries` | A feature column reached the GeoJSON or the manifest as NaN. Aggregation must skip NaN the way `score_normalized` and `_finite_min_max` do. |
 | `tile N/X/Y has 200001 features, >200000` | The tippecanoe call lost `--no-feature-limit`. It must stay paired with `--drop-rate=0`. |
+| `Internal error: N shards not a power of 2` from tippecanoe | The job landed on a wide node. tippecanoe sizes itself from the machine's online CPU count and ignores the cgroup, so an 8 cpu allocation on a 384 cpu node derives a bad shard count. `emit_artifacts.build_pmtiles` caps it with `TIPPECANOE_MAX_THREADS`; check that the value it logs matches `--cpus-per-task`. The open file limit is **not** the cause here, and raising it changes nothing. |
 | A run vanished with a zero-byte log | It was started from a shell instead of Slurm and died with the session. Use `slurm_run.sh`. |
 | Validator rejects the row count | A full-city run must not use `--bbox`. Check the basemap fetch. If the basemap itself grew, the band needs recalibrating in **both** `emit_artifacts.py` and `pipeline/contract/validate_snapshot.mjs`. |
 | Validator rejects the date | The node clock is wrong, or the snapshot is older than 48 h. Rerun. |
