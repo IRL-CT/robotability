@@ -29,6 +29,76 @@ export const SCORE_COLORS: ReadonlyArray<readonly [number, number, number]> = [
 export const SCORE_DOMAIN_MIN = -0.4049;
 export const SCORE_DOMAIN_MAX = 0.5952;
 
+// The colour breaks for one snapshot: one score per ramp stop.
+//
+// Spreading the ramp evenly across the domain above looks reasonable and
+// renders badly. The domain is what a score *could* be; a real city uses
+// a fraction of it. The 2026 citywide run spans [0.020, 0.348], 33% of
+// the domain, sitting between stops 4 and 8 — so the map drew the whole
+// city in yellows and light greens and ten of the eleven colours never
+// appeared.
+//
+// So a snapshot ships its own breaks: the deciles of its scores, written
+// by the cluster (emit_artifacts.score_quantiles). An equal share of
+// segments lands in every colour whatever the distribution's shape, and
+// the legend's "Score percentile" labels become literally true.
+//
+// Returns null unless the value is a usable ramp: one finite, strictly
+// increasing number per colour. MapLibre throws on repeated stops, and a
+// bad manifest must not take the map down — the caller falls back to the
+// fixed domain, which is the old behaviour.
+export function parseScoreBreaks(value: unknown): number[] | null {
+  if (!Array.isArray(value) || value.length !== SCORE_COLORS.length) return null;
+  const out: number[] = [];
+  for (const raw of value) {
+    if (typeof raw !== 'number' || !Number.isFinite(raw)) return null;
+    if (out.length > 0 && raw <= out[out.length - 1]) return null;
+    out.push(raw);
+  }
+  return out;
+}
+
+// The evenly spaced fallback breaks across the full score domain.
+export function defaultScoreBreaks(): number[] {
+  const span = SCORE_DOMAIN_MAX - SCORE_DOMAIN_MIN;
+  const lastIndex = SCORE_COLORS.length - 1;
+  return SCORE_COLORS.map((_, i) => SCORE_DOMAIN_MIN + (span * i) / lastIndex);
+}
+
+// Build a MapLibre colour ramp over `breaks` for a numeric property.
+// Both the snapshot layer and the live overlay use this, so their colours
+// cannot drift apart.
+export function scoreRampExpression(
+  property: string,
+  breaks: readonly number[],
+): unknown[] {
+  const stops: Array<number | string> = [];
+  for (let i = 0; i < SCORE_COLORS.length; i += 1) {
+    const color = SCORE_COLORS[i];
+    stops.push(breaks[i]);
+    stops.push(`rgb(${color[0]}, ${color[1]}, ${color[2]})`);
+  }
+  return ['interpolate', ['linear'], ['get', property], ...stops];
+}
+
+// Where a score sits on the ramp, 0-100. With decile breaks this is the
+// segment's true percentile among the snapshot's segments, which is what
+// the breakdown panel claims to show.
+export function scoreToPercent(score: number, breaks: readonly number[]): number {
+  const last = breaks.length - 1;
+  if (score <= breaks[0]) return 0;
+  if (score >= breaks[last]) return 100;
+  for (let i = 0; i < last; i += 1) {
+    const lo = breaks[i];
+    const hi = breaks[i + 1];
+    if (score <= hi) {
+      const withinBand = hi === lo ? 0 : (score - lo) / (hi - lo);
+      return ((i + withinBand) / last) * 100;
+    }
+  }
+  return 100;
+}
+
 // One deployment location with its field-video time range.
 // coords keeps the legacy [lat, lon] order of the source file.
 export type DeploymentSite = {

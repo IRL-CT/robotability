@@ -291,6 +291,12 @@ const entry = {
   row_count: manifest.row_count,
   score_min: manifest.score_min,
   score_max: manifest.score_max,
+  // The map's colour breaks, one per ramp stop. Absent on snapshots
+  // built before the cluster emitted them; the map falls back to the
+  // fixed score domain then, which is how it always behaved.
+  ...(Array.isArray(manifest.score_quantiles)
+    ? { score_quantiles: manifest.score_quantiles }
+    : {}),
   feature_stats: manifest.feature_stats,
   weights_sha256: manifest.weights_sha256,
   // The map reads this flag to pick the breakdown panel behavior.

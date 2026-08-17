@@ -28,6 +28,11 @@ export type SnapshotEntry = {
   // on snapshots built by the cluster pipeline. The live refresh needs
   // them for normalization and refuses to run without them.
   readonly feature_stats?: Record<string, SnapshotFeatureStatsEntry>;
+  // One score per ramp stop: this snapshot's own colour breaks. Absent
+  // on the 2023 baseline and on any snapshot built before the cluster
+  // emitted them, and the map then falls back to the fixed score
+  // domain. See constants.parseScoreBreaks.
+  readonly score_breaks?: readonly number[];
 };
 
 // The exact fallback sentence for snapshots without feature vectors.

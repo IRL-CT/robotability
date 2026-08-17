@@ -19,6 +19,7 @@ Exit codes: 0 success, 1 failure, 2 bad usage.
 import argparse
 import datetime
 import json
+import math
 import os
 import subprocess
 import sys
@@ -132,6 +133,44 @@ def _finite_min_max(name: str, values: list) -> dict:
                f'cannot carry a min and max for it. The contract requires '
                f'both. Check the join that produces {name}.')
     return {'min': min(finite), 'max': max(finite)}
+
+
+def score_quantiles(scores: list, count: int = 11) -> List[float]:
+    """Return `count` evenly spaced quantiles of the finite scores.
+
+    These become the map's colour breaks. The map used to spread its 11
+    ramp colours evenly across the score's *theoretical* domain, the two
+    weight sums [-0.4049, 0.5952]. Real scores occupy a small part of
+    that: the 2026 city run spans [0.020, 0.348], about a third of the
+    domain, so ten of the eleven colours were unreachable and the whole
+    city drew in yellows and light greens.
+
+    Quantiles put an equal share of segments in every colour by
+    construction, whatever shape the distribution has, and they make the
+    legend's existing "Score percentile / 0-100%" labels true.
+
+    The result is strictly increasing. MapLibre rejects an interpolate
+    expression whose stops repeat, and ties are easy to hit at the ends
+    of a skewed distribution. A repeated value is nudged up by the
+    smallest step that keeps the order, which costs nothing visually
+    because a repeat means the band holds no distinct scores anyway.
+    """
+    finite = sorted(v for v in scores if not cs._is_nan(v))
+    if not finite:
+        pc.die('every score is NaN, so the map has no colour breaks. '
+               'Check compute_score.')
+    last = len(finite) - 1
+    out: List[float] = []
+    for i in range(count):
+        pos = last * i / (count - 1)
+        lo = int(pos)
+        hi = min(lo + 1, last)
+        frac = pos - lo
+        value = finite[lo] + (finite[hi] - finite[lo]) * frac
+        if out and value <= out[-1]:
+            value = math.nextafter(out[-1], float('inf'))
+        out.append(value)
+    return out
 
 
 def _tippecanoe_cpus() -> int:
@@ -319,11 +358,16 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
 
     feature_stats = {f: _finite_min_max(f, feature_arrays[f])
                      for f in cs.FEATURES}
+    quantiles = score_quantiles(scores)
+    pc.log('emit_artifacts: score deciles ' +
+           ' '.join(f'{v:.4f}' for v in quantiles))
     manifest = {
         'date': date,
         'row_count': len(segment_ids),
         'score_min': min(scores),
         'score_max': max(scores),
+        # The map's colour breaks. See score_quantiles.
+        'score_quantiles': quantiles,
         'feature_stats': feature_stats,
         'weights_sha256': weights_sha,
         'partial': partial,

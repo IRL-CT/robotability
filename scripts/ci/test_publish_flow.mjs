@@ -136,11 +136,22 @@ function assertion1() {
     );
   const after = JSON.parse(fs.readFileSync(target, 'utf8'));
   const appended = after.snapshots.length - before.snapshots.length;
-  const last = after.snapshots[after.snapshots.length - 1];
+  // Find the entry by tag rather than assuming it was appended last.
+  // publish_flow upserts: a re-publish of the same tag replaces the
+  // existing entry so the flow stays idempotent. The fixture's date is
+  // refreshed to today, so when the site manifest already carries a
+  // snapshot published today the correct result is a replacement and no
+  // growth. Asserting a growth of exactly 1 made this test fail on any
+  // day a snapshot had already been published, which says nothing about
+  // publish_flow.
+  const tag = `snapshot-${fixtureManifest.date}`;
+  const existedBefore = before.snapshots.some((s) => s && s.tag === tag);
+  const last = after.snapshots.find((s) => s && s.tag === tag);
   const entryOk =
-    appended === 1 &&
+    appended === (existedBefore ? 0 : 1) &&
+    last !== undefined &&
     last.date === fixtureManifest.date &&
-    last.tag === `snapshot-${fixtureManifest.date}`;
+    last.tag === tag;
   // The map reads entry.urls and drops any entry without it, silently.
   // An entry that carried only asset_url_template published a snapshot
   // that never reached the map, so assert the shape the consumer needs:
@@ -161,9 +172,9 @@ function assertion1() {
     label,
     ok,
     `  exit ${r.status}, release files ok: ${filesOk}, ` +
-      `appended entries: ${appended}, last date: ${last && last.date}, ` +
-      `last tag: ${last && last.tag}, urls ok: ${urlsOk} ` +
-      `(segments: ${urls && urls.segments})`,
+      `appended: ${appended} (tag existed before: ${existedBefore}), ` +
+      `date: ${last && last.date}, tag: ${last && last.tag}, ` +
+      `urls ok: ${urlsOk} (segments: ${urls && urls.segments})`,
   );
 }
 

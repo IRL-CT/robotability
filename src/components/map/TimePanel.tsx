@@ -25,7 +25,7 @@ import type {
   Map as MapLibreMap,
 } from 'maplibre-gl';
 import { loadFeatureRows } from './breakdownData';
-import { SCORE_COLORS, SCORE_DOMAIN_MAX, SCORE_DOMAIN_MIN } from './constants';
+import { defaultScoreBreaks, scoreRampExpression } from './constants';
 import type { SnapshotEntry } from './types';
 import { SodaClient } from '../../lib/soda/client';
 import { createQuotaGuard } from '../../lib/soda/quotaGuard';
@@ -108,20 +108,13 @@ function divergingRamp(minDelta: number, maxDelta: number): ExpressionSpecificat
   ];
 }
 
-// The score ramp for the live overlay. The stops match the segments
-// layer in MapCanvas.tsx (scoreColorExpression). The copy keeps the
-// TimePanel free of a MapCanvas import, which would be circular.
-function liveScoreRamp(): ExpressionSpecification {
-  const stops: Array<number | string> = [];
-  const span = SCORE_DOMAIN_MAX - SCORE_DOMAIN_MIN;
-  const lastIndex = SCORE_COLORS.length - 1;
-  for (let i = 0; i < SCORE_COLORS.length; i += 1) {
-    stops.push(SCORE_DOMAIN_MIN + (span * i) / lastIndex);
-    const color = SCORE_COLORS[i];
-    stops.push(`rgb(${color[0]}, ${color[1]}, ${color[2]})`);
-  }
-  const interpolation: InterpolationSpecification = ['linear'];
-  return ['interpolate', interpolation, ['get', 'liveScore'], ...stops];
+// The score ramp for the live overlay. It shares its builder with the
+// segments layer in MapCanvas, through constants, so the overlay and the
+// snapshot beneath it cannot colour the same score differently. This
+// used to be a copy of the MapCanvas function, kept to avoid a circular
+// import; the shared builder removes both the copy and the cycle.
+function liveScoreRamp(breaks: readonly number[]): ExpressionSpecification {
+  return scoreRampExpression('liveScore', breaks) as ExpressionSpecification;
 }
 
 // The overlay line width. It tracks the segments width with a small
@@ -212,6 +205,15 @@ export default function TimePanel(props: TimePanelProps) {
   const dates = useMemo(() => entries.map((entry) => entry.date), [entries]);
   const activeDate = activeEntry?.date ?? null;
   const activeIndex = activeDate === null ? -1 : dates.indexOf(activeDate);
+
+  // The active snapshot's colour breaks, held in a ref so paintLiveOverlay
+  // keeps its [getMap] dependency list. Adding activeEntry there would
+  // rebuild the callback on every snapshot switch and repaint the overlay
+  // for no reason.
+  const scoreBreaksRef = useRef<readonly number[]>(defaultScoreBreaks());
+  useEffect(() => {
+    scoreBreaksRef.current = activeEntry?.score_breaks ?? defaultScoreBreaks();
+  }, [activeEntry]);
 
   const [playing, setPlaying] = useState(false);
   const [diffMode, setDiffMode] = useState(false);
@@ -328,7 +330,7 @@ export default function TimePanel(props: TimePanelProps) {
         type: 'line',
         source: LIVE_SOURCE_ID,
         paint: {
-          'line-color': liveScoreRamp(),
+          'line-color': liveScoreRamp(scoreBreaksRef.current),
           'line-width': overlayWidthExpression(),
           'line-opacity': 0.95,
         },

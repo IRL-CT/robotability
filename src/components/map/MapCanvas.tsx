@@ -14,7 +14,13 @@ import type {
 import { Protocol } from 'pmtiles';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import BreakdownPanel from './BreakdownPanel';
-import { SCORE_COLORS, SCORE_DOMAIN_MAX, SCORE_DOMAIN_MIN, type DeploymentSite } from './constants';
+import {
+  defaultScoreBreaks,
+  parseScoreBreaks,
+  scoreRampExpression,
+  scoreToPercent as scorePercentOnRamp,
+  type DeploymentSite,
+} from './constants';
 import {
   DEPLOYMENTS_LAYER_ID,
   deploymentEmbedUrl,
@@ -134,6 +140,7 @@ function parseManifest(raw: unknown): SnapshotEntry[] {
         parquet: typeof parquetUrl === 'string' ? parquetUrl : undefined,
       },
       feature_stats: featureStats,
+      score_breaks: parseScoreBreaks(item['score_quantiles']) ?? undefined,
     });
   }
   if (entries.length === 0) {
@@ -149,21 +156,12 @@ function latestEntry(entries: SnapshotEntry[]): SnapshotEntry {
   );
 }
 
-// Build the line-color expression. The 11 ramp colors divide the full
-// score domain into 10 equal parts. Stop 0 sits at the domain minimum.
-// The last stop sits at the domain maximum.
-function scoreColorExpression(): ExpressionSpecification {
-  const stops: Array<number | string> = [];
-  const span = SCORE_DOMAIN_MAX - SCORE_DOMAIN_MIN;
-  const lastIndex = SCORE_COLORS.length - 1;
-  for (let i = 0; i < SCORE_COLORS.length; i += 1) {
-    stops.push(SCORE_DOMAIN_MIN + (span * i) / lastIndex);
-    const color = SCORE_COLORS[i];
-    stops.push(`rgb(${color[0]}, ${color[1]}, ${color[2]})`);
-  }
-  const interpolation: InterpolationSpecification = ['linear'];
-  const input: ExpressionSpecification = ['get', 'score'];
-  return ['interpolate', interpolation, input, ...stops];
+// Build the line-color expression from a snapshot's colour breaks.
+// Breaks come from the manifest when the snapshot ships them, so each
+// colour holds a tenth of the segments; otherwise they spread evenly
+// across the full score domain. See constants.scoreRampExpression.
+function scoreColorExpression(breaks: readonly number[]): ExpressionSpecification {
+  return scoreRampExpression('score', breaks) as ExpressionSpecification;
 }
 
 // Build the line-width expression. Width grows with zoom, like the
@@ -317,9 +315,10 @@ function switchStyle(
   map.once('styledata', restore);
 }
 
-// The score of one segment as a percent of the full domain.
-function scoreToPercent(score: number): number {
-  return ((score - SCORE_DOMAIN_MIN) / (SCORE_DOMAIN_MAX - SCORE_DOMAIN_MIN)) * 100;
+// The score of one segment as a percent of the ramp. With the decile
+// breaks a snapshot now ships, this is the segment's percentile.
+function scoreToPercent(score: number, breaks: readonly number[]): number {
+  return scorePercentOnRamp(score, breaks);
 }
 
 // The clicked segment shown in the breakdown panel.
@@ -352,6 +351,11 @@ export default function MapCanvas() {
   // The snapshot apply function escapes the map effect through this ref.
   // The TimePanel and the window hook call it from component scope.
   const applySnapshotRef = useRef<((entry: SnapshotEntry) => void) | null>(null);
+  // The active snapshot's colour breaks. The tooltip handler is bound
+  // once in the map effect and has no entry in scope, so it reads the
+  // breaks here rather than closing over the snapshot that happened to
+  // be active when the map was built.
+  const scoreBreaksRef = useRef<readonly number[]>(defaultScoreBreaks());
 
   // The error message for the visible banner. null means no error.
   const [error, setError] = useState<string | null>(null);
@@ -446,7 +450,10 @@ export default function MapCanvas() {
       }
       const id: unknown = feature.properties['id'];
       const label = typeof id === 'number' ? String(id) : 'unknown';
-      positionTooltip(event, `Score: ${scoreToPercent(score).toFixed(1)}% | Segment ${label}`);
+      positionTooltip(
+        event,
+        `Score: ${scoreToPercent(score, scoreBreaksRef.current).toFixed(1)}% | Segment ${label}`,
+      );
     };
 
     const showDeploymentTooltip = (event: MapLayerMouseEvent): void => {
@@ -473,6 +480,8 @@ export default function MapCanvas() {
             if (!disposed) setError(`The snapshot ${entry.date} has no tiles URL.`);
             return;
           }
+          const breaks = entry.score_breaks ?? defaultScoreBreaks();
+          scoreBreaksRef.current = breaks;
           registerLayer(map, 'segments', {
             sourceId: 'segments-source',
             source: {
@@ -488,7 +497,7 @@ export default function MapCanvas() {
               source: 'segments-source',
               'source-layer': 'segments',
               paint: {
-                'line-color': scoreColorExpression(),
+                'line-color': scoreColorExpression(breaks),
                 'line-width': scoreWidthExpression(),
                 'line-opacity': 0.9,
               },
