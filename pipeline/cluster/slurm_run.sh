@@ -13,7 +13,7 @@
 #
 # Usage:
 #   bash slurm_run.sh --config /share/ju/robotability-runs/cluster_config.yaml \
-#       --out /share/ju/robotability-runs/citywide-smoke
+#       --out /share/ju/robotability-runs/nyc_citywide
 #   bash slurm_run.sh --from-stage 3 --config <cfg> --out <dir>
 #
 # Every argument is passed through to run_all.sh untouched. See its
