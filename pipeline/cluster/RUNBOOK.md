@@ -199,6 +199,16 @@ Use this mode when the cluster cannot call the GitHub API.
    force-pushes it. The branch carries one commit and is replaced whole,
    so it never accumulates the large binary artifacts.
 
+   **`segments.geojson` travels gzipped.** GitHub refuses any blob over
+   100 MiB and the full-city geojson is about 101 MiB, so a raw push is
+   rejected outright. Stage 6 pushes `segments.geojson.gz` (about 16 MiB,
+   6.4x) and the publish workflow expands it before validation. The
+   contract still names the uncompressed file and pins its sha256; gzip
+   round trips byte for byte, so nothing downstream changes. If another
+   artifact later crosses the limit, stage 6 stops with a clear error
+   rather than letting the push fail — `segments.pmtiles` is the one to
+   watch, at about 61 MiB today.
+
 3. A scheduled CI job polls the branch head every 6 hours and publishes
    valid snapshots. See the publish workflow (T6).
 
@@ -210,7 +220,8 @@ cd push-dir
 git checkout --orphan snapshots-incoming
 git rm -rf . 2>/dev/null || true
 cp /share/your-lab/robotability/snapshots/<date>/* .
-git add segments.geojson segments.pmtiles features.parquet manifest.json
+gzip -6 segments.geojson          # required, see the note above
+git add segments.geojson.gz segments.pmtiles features.parquet manifest.json
 git commit -m "snapshot <date>"
 git push origin snapshots-incoming
 ```

@@ -51,6 +51,27 @@ DISPATCH_EVENT = 'snapshot-ready'
 VALID_MODES = ('none', 'dispatch', 'push')
 HTTP_TIMEOUT_S = 60
 
+# segments.geojson travels compressed, and only on the incoming branch.
+# GitHub refuses any blob over 100 MiB, and the full city geojson is
+# about 101 MiB, so a raw push is rejected outright. It compresses about
+# 6.4x, to roughly 16 MiB.
+#
+# This is transport only. The contract still names the uncompressed file
+# and pins its sha256, and gzip round trips byte for byte, so CI
+# decompresses before it validates and every downstream check is
+# unchanged. The publish workflow does that in its Expand step.
+#
+# Compressing the other three would gain little: the pmtiles and the
+# parquet are already compressed internally, and the manifest is tiny.
+GEOJSON_NAME = 'segments.geojson'
+GEOJSON_GZ_NAME = GEOJSON_NAME + '.gz'
+PUSHED_FILES = (GEOJSON_GZ_NAME, 'segments.pmtiles',
+                'features.parquet', 'manifest.json')
+GZIP_LEVEL = 6
+# GitHub's hard per-blob push limit. Not a warning threshold: the push
+# fails.
+GITHUB_MAX_BLOB_BYTES = 100 * 1024 * 1024
+
 
 def check_artifacts(out_dir: str) -> List[str]:
     """Return the four artifact paths. Stop when any is missing."""
@@ -116,26 +137,62 @@ def _git(args: Sequence[str], cwd: str, dry_run: bool) -> str:
     return proc.stdout.strip()
 
 
+def _stage_pushed_files(out_dir: str, work: str) -> None:
+    """Copy the artifacts into work, compressing the geojson on the way."""
+    import gzip
+    import shutil
+
+    for name in SNAPSHOT_FILES:
+        src = os.path.join(out_dir, name)
+        if name == GEOJSON_NAME:
+            dst = os.path.join(work, GEOJSON_GZ_NAME)
+            raw = os.path.getsize(src)
+            with open(src, 'rb') as fin:
+                with gzip.GzipFile(dst, 'wb', compresslevel=GZIP_LEVEL,
+                                   mtime=0) as fout:
+                    shutil.copyfileobj(fin, fout, length=8 * 1024 * 1024)
+            gz = os.path.getsize(dst)
+            pc.log(f'publish_snapshot: gzip {name} '
+                   f'{raw} -> {gz} bytes ({raw / gz:.2f}x)')
+        else:
+            shutil.copy2(src, os.path.join(work, name))
+
+    # Catch the next artifact to outgrow the limit before the push does.
+    # The pmtiles is the one to watch: it is about 61 MiB on the 2026
+    # basemap and grows with the city.
+    for name in PUSHED_FILES:
+        size = os.path.getsize(os.path.join(work, name))
+        if size > GITHUB_MAX_BLOB_BYTES:
+            pc.die(f'{name} is {size} bytes, over GitHub\'s '
+                   f'{GITHUB_MAX_BLOB_BYTES} byte blob limit, so the push '
+                   f'would be rejected. Compress it in transit the way '
+                   f'{GEOJSON_NAME} is, and decompress it in the publish '
+                   f'workflow before validation.')
+
+
 def trigger_push(out_dir: str, remote: str, date: str, dry_run: bool) -> None:
-    """Push the four artifacts to the orphan snapshots-incoming branch.
+    """Push the artifacts to the orphan snapshots-incoming branch.
 
     The branch holds the artifacts at its root and keeps no history from
     the code branches, which is why it is orphaned. Each publish replaces
     its single commit, so the branch never accumulates the large binary
     files. The scheduled CI job polls this branch head.
+
+    segments.geojson travels gzipped. See GEOJSON_GZ_NAME.
     """
     import tempfile
 
-    with tempfile.TemporaryDirectory(prefix='snapshot-push-') as work:
+    # gzip needs room for the compressed copy, and TMPDIR on a batch node
+    # is small on some partitions. The snapshot dir already holds the
+    # uncompressed artifacts, so it has the room by definition.
+    with tempfile.TemporaryDirectory(prefix='snapshot-push-',
+                                     dir=out_dir) as work:
         _git(['init', '--quiet', '--initial-branch', INCOMING_BRANCH],
              work, dry_run)
         _git(['remote', 'add', 'origin', remote], work, dry_run)
         if not dry_run:
-            import shutil
-            for name in SNAPSHOT_FILES:
-                shutil.copy2(os.path.join(out_dir, name),
-                             os.path.join(work, name))
-        _git(['add', *SNAPSHOT_FILES], work, dry_run)
+            _stage_pushed_files(out_dir, work)
+        _git(['add', *PUSHED_FILES], work, dry_run)
         _git(['-c', 'user.name=robotability-cluster',
               '-c', 'user.email=cluster@localhost',
               'commit', '--quiet', '-m', f'snapshot {date}'], work, dry_run)

@@ -98,6 +98,27 @@ jobs:
           ref: ${{ steps.resolve.outputs.ref }}
           path: snapshot-incoming
 
+      # STE 4b: expand segments.geojson.
+      # The cluster gzips it before pushing because GitHub refuses any
+      # blob over 100 MiB and the full city geojson is about 101 MiB.
+      # gzip round trips byte for byte, so the manifest sha256 of the
+      # uncompressed file still matches and the contract is unchanged.
+      # A snapshot pushed with the raw file (an older cluster, or a hand
+      # copy) has no .gz and passes through untouched.
+      - name: Expand segments.geojson
+        if: steps.resolve.outputs.skip != 'true'
+        run: |
+          cd snapshot-incoming
+          if [ -f segments.geojson.gz ]; then
+            gunzip --keep --force segments.geojson.gz
+            echo "expanded segments.geojson.gz -> $(stat -c %s segments.geojson) bytes"
+          elif [ -f segments.geojson ]; then
+            echo "segments.geojson is already uncompressed"
+          else
+            echo "ERROR: the snapshot has neither segments.geojson nor segments.geojson.gz" >&2
+            exit 1
+          fi
+
       # STE 5: validation gate. publish_flow.mjs runs the contract
       # validator and gates on its EXIT CODE. It also rejects partial
       # snapshots and stale dates before any release payload exists.
