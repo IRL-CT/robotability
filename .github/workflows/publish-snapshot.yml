@@ -32,9 +32,11 @@ on:
     # Every 6 hours. Poll the snapshots-incoming branch head.
     - cron: '0 */6 * * *'
 
-# The workflow creates a release and pushes a commit to main.
+# The workflow creates a release, pushes a commit to main, and asks the
+# deploy workflow to run. actions:write is what allows that last part.
 permissions:
   contents: write
+  actions: write
 
 jobs:
   publish:
@@ -235,11 +237,19 @@ jobs:
              "$DEST/"
           du -sh "$DEST"
 
-      # STE 10: commit and push the manifest update.
-      # NOTE: this push to main triggers deploy.yml on purpose. The site
-      # must redeploy so the map sees the new snapshot entry.
+      # STE 10: commit and push the manifest update and the artifacts.
+      #
+      # This push does NOT trigger deploy.yml, which this comment used to
+      # claim it did. GitHub does not start workflows from a push made
+      # with the default GITHUB_TOKEN, to stop a workflow retriggering
+      # itself forever. The consequence went unnoticed because nothing
+      # fails: the release exists, the manifest is correct on main, every
+      # step is green, and the built site keeps serving the previous
+      # snapshot until someone happens to push again. STE 11 asks for the
+      # deploy explicitly.
       - name: Commit manifest update
         if: steps.resolve.outputs.skip != 'true'
+        id: commit
         env:
           DATE: ${{ steps.snap.outputs.date }}
         run: |
@@ -248,7 +258,20 @@ jobs:
           git add public/manifest.json "public/snapshots/$DATE"
           if git diff --cached --quiet; then
             echo "manifest unchanged. Nothing to commit."
+            echo "changed=false" >> "$GITHUB_OUTPUT"
           else
             git commit -m "chore(data): publish snapshot $DATE"
             git push
+            echo "changed=true" >> "$GITHUB_OUTPUT"
           fi
+
+      # STE 11: rebuild the site so the map sees the new snapshot.
+      # Skipped when STE 10 committed nothing, since the built site is
+      # then already current.
+      - name: Trigger site deploy
+        if: steps.resolve.outputs.skip != 'true' && steps.commit.outputs.changed == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh workflow run deploy.yml --ref main
+          echo "requested deploy.yml on main"
