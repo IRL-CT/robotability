@@ -103,6 +103,12 @@
       "date": "2026-08-17",
       "tag": "snapshot-2026-08-17",
       "asset_url_template": "https://github.com/IRL-CT/robotability/releases/download/snapshot-2026-08-17/{file}",
+      "urls": {
+        "segments": "/snapshots/2026-08-17/segments.pmtiles",
+        "parquet": "/snapshots/2026-08-17/features.parquet",
+        "manifest": "/snapshots/2026-08-17/manifest.json",
+        "census": "/snapshots/2023-08-01/census.pmtiles"
+      },
       "row_count": 491894,
       "score_min": 0.019962430000305176,
       "score_max": 0.34839385747909546,
