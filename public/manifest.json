@@ -116,6 +116,113 @@
       },
       "weights_sha256": "6278272614fe5e012874a2804e9e576f21f5a9cd4b952eb9296ccb6932965beb",
       "feature_vectors": true
+    },
+    {
+      "date": "2026-08-18",
+      "tag": "snapshot-2026-08-18",
+      "asset_url_template": "https://github.com/IRL-CT/robotability/releases/download/snapshot-2026-08-18/{file}",
+      "urls": {
+        "segments": "/snapshots/2026-08-18/segments.pmtiles",
+        "parquet": "/snapshots/2026-08-18/features.parquet",
+        "manifest": "/snapshots/2026-08-18/manifest.json",
+        "census": "/snapshots/2023-08-01/census.pmtiles"
+      },
+      "row_count": 491894,
+      "score_min": 0.018796931952238083,
+      "score_max": 0.34826985001564026,
+      "score_quantiles": [
+        0.018796931952238083,
+        0.177156500518322,
+        0.19869269728660582,
+        0.21236575692892073,
+        0.22202479243278503,
+        0.23104795068502426,
+        0.23941543102264404,
+        0.24604720175266265,
+        0.25319761633872984,
+        0.2639342755079269,
+        0.34826985001564026
+      ],
+      "feature_stats": {
+        "sidewalk_width": {
+          "min": 0,
+          "max": 1
+        },
+        "pedestrian_density": {
+          "min": 0,
+          "max": 1
+        },
+        "street_furniture_density": {
+          "min": 0,
+          "max": 1
+        },
+        "sidewalk_roughness": {
+          "min": 1,
+          "max": 1
+        },
+        "surface_condition": {
+          "min": 0,
+          "max": 1
+        },
+        "communication_infrastructure": {
+          "min": 0,
+          "max": 1
+        },
+        "slope_gradient": {
+          "min": 0,
+          "max": 1
+        },
+        "charging_station_proximity": {
+          "min": 0,
+          "max": 1
+        },
+        "curb_ramp_availability": {
+          "min": 0,
+          "max": 1
+        },
+        "crowd_dynamics": {
+          "min": 0,
+          "max": 1
+        },
+        "traffic_management": {
+          "min": 0,
+          "max": 1
+        },
+        "surveillance_coverage": {
+          "min": 0,
+          "max": 1
+        },
+        "zoning_laws": {
+          "min": 0,
+          "max": 1
+        },
+        "bike_lane_availability": {
+          "min": 0,
+          "max": 1
+        },
+        "gps_signal_strength": {
+          "min": 1,
+          "max": 1
+        },
+        "bicycle_traffic": {
+          "min": 0,
+          "max": 1
+        },
+        "vehicle_traffic": {
+          "min": 0,
+          "max": 1
+        },
+        "digital_map_existence": {
+          "min": 1,
+          "max": 1
+        },
+        "intersection_safety": {
+          "min": 0,
+          "max": 1
+        }
+      },
+      "weights_sha256": "6278272614fe5e012874a2804e9e576f21f5a9cd4b952eb9296ccb6932965beb",
+      "feature_vectors": true
     }
   ]
 }
