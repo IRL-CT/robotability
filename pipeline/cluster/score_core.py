@@ -21,8 +21,7 @@ import pipeline_common as pc  # noqa: E402
 
 from features_spec import (  # noqa: E402,F401
     FEATURES, POLARITIES, CONSTANT_ONE_FEATURES,
-    TRAFFIC_MANAGEMENT_COLUMNS, SLOPE_MAX_NEIGHBORS,
-    SLOPE_MIN_BASELINE_FT, SLOPE_MAX_GRADE,
+    TRAFFIC_MANAGEMENT_COLUMNS, SLOPE_BASELINE_FT, SLOPE_MAX_GRADE,
 )
 
 
@@ -252,69 +251,47 @@ def aggregate_segment_scores(
 
 
 def slope_gradient(
-    elevations: Sequence[float],
-    centroids_proj_xy: Sequence[tuple],
+    height_start: Sequence[float],
+    height_end: Sequence[float],
+    run_ft: Sequence[float],
 ) -> List[float]:
-    """Mean slope to the nearest neighbours. From score.ipynb cell 36.
+    """Grade along each segment. |height difference| over distance.
 
-    The slope is the mean of |height difference| / distance over the
-    SLOPE_MAX_NEIGHBORS nearest other centroids, ignoring any closer than
-    SLOPE_MIN_BASELINE_FT, clipped at SLOPE_MAX_GRADE. Coordinates must
-    already be in EPSG:2263 (feet).
+    Every segment is a two-point line, so this is the steepness a robot
+    meets pushing along it. lab_inputs.sample_dem takes the two heights
+    over SLOPE_BASELINE_FT at minimum, along the segment's own bearing,
+    and reports the distance it actually sampled as run_ft.
 
-    Three things differ from the first port, all measured on the 2026
-    citywide run and all documented beside their constants in
-    features_spec: the 50 ft radius is gone, neighbours closer than 5 ft
-    are ignored, and the result is clipped to a physical maximum grade.
-    Together they take the feature from 57.7% exactly zero to 1.6%.
+    The result is clipped at SLOPE_MAX_GRADE and is never negative.
+    Direction is deliberately dropped: uphill and downhill are equally
+    hard, the weight polarity is negative for both, and a sidewalk
+    segment carries no direction of travel, so a sign would only record
+    which end the geometry starts at.
 
-    A segment with no neighbour beyond the baseline still returns 0.0.
-    That is the one case where "could not measure" and "flat" remain the
-    same value, and it is now 0.70% of the city rather than 35.25%.
-    Reporting it as NaN would be truer but the contract cannot carry it:
-    score_normalized skips NaN, so those segments would silently score
-    over 18 features instead of 19.
-
-    Uses scipy's cKDTree, as the research does. A k-nearest query is what
-    this needs and shapely's STRtree does not offer one.
+    A segment the DEM does not cover returns NaN, the no-data marker of
+    contract section 3.2. Earlier ports returned 0.0 there and so wrote
+    "could not measure" into the same column, with the same value, as
+    "flat". NaN costs nothing in the score: score_normalized skips it,
+    and a zero grade contributes polarity * 0 * weight = 0 anyway. It
+    gains an honest map, which draws those segments as "No value".
     """
     import numpy as np
-    from scipy.spatial import cKDTree
 
-    n = len(elevations)
+    n = len(height_start)
     if n == 0:
         return []
-    if n == 1:
-        return [0.0]
+    z0 = np.asarray(height_start, dtype=np.float64)
+    z1 = np.asarray(height_end, dtype=np.float64)
+    run = np.asarray(run_ft, dtype=np.float64)
 
-    heights = np.asarray(elevations, dtype=np.float64)
-    coords = np.asarray(centroids_proj_xy, dtype=np.float64)
-    # k includes the point itself, which is always its own nearest.
-    k = min(SLOPE_MAX_NEIGHBORS + 1, n)
-    tree = cKDTree(coords)
-    dist, idx = tree.query(coords, k=k)
-    dist = np.atleast_2d(dist)[:, 1:]
-    idx = np.atleast_2d(idx)[:, 1:]
+    with np.errstate(invalid='ignore', divide='ignore'):
+        grade = np.abs(z1 - z0) / np.where(run > 0, run, np.nan)
+    measured = np.isfinite(grade)
+    clipped = int(np.sum(measured & (grade > SLOPE_MAX_GRADE)))
+    grade = np.where(measured, np.clip(grade, 0.0, SLOPE_MAX_GRADE), np.nan)
 
-    # cKDTree marks a miss with an infinite distance and an out-of-range
-    # index. There are no misses without a distance bound, but keep the
-    # guard so a future bound cannot read past the array.
-    usable = np.isfinite(dist) & (idx < n) & (dist >= SLOPE_MIN_BASELINE_FT)
-    safe_idx = np.where(idx < n, idx, 0)
-    height_diff = np.abs(heights[safe_idx] - heights[:, None])
-    slopes = np.where(usable, height_diff / np.where(dist > 0, dist, 1.0), 0.0)
-
-    counts = usable.sum(axis=1)
-    totals = slopes.sum(axis=1)
-    mean = np.divide(totals, counts, out=np.zeros(n, dtype=np.float64),
-                     where=counts > 0)
-    clipped = int((mean > SLOPE_MAX_GRADE).sum())
-    mean = np.clip(mean, 0.0, SLOPE_MAX_GRADE)
-    no_neighbour = int((counts == 0).sum())
+    no_data = n - int(measured.sum())
     pc.log(f'score_core: slope over {n} segments, '
-           f'{no_neighbour} with no neighbour beyond '
-           f'{SLOPE_MIN_BASELINE_FT:g} ft ({100.0 * no_neighbour / n:.2f}%), '
+           f'{no_data} with no DEM cover ({100.0 * no_data / n:.2f}%), '
            f'{clipped} clipped at {SLOPE_MAX_GRADE:g}')
-    return [float(v) for v in mean]
-
-
+    return [float(v) for v in grade]

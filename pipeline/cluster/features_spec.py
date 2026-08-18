@@ -82,40 +82,38 @@ TRAFFIC_MANAGEMENT_COLUMNS = (
 # feet and the port carried it faithfully. The radius still had to go.
 #
 # The research ran over about 465k sampled POINTS along the sidewalks.
-# The pipeline runs over one centroid per SEGMENT, which are far sparser
-# (median nearest neighbour 26.5 ft). The same 50 ft therefore stopped
-# meaning what it meant: 35.25% of segments found no neighbour at all and
-# took the 0.0 fallback, so "could not measure" was written to the same
-# column, and with the same value, as "flat". Taking the 10 nearest
-# without a radius drops that to 0.70% and keeps the research's real
-# intent, which is the ten nearest neighbours.
-SLOPE_MAX_NEIGHBORS = 10
+# Slope is the grade ALONG the sidewalk, not the relief around it.
+#
+# The first two ports measured neither. They took the mean of
+# |height difference| / distance to the nearest other segment centroids,
+# in every direction at once. That is local terrain relief: a sidewalk
+# running level along the side of a hill scored as steep, because the
+# ground beside it rises, while a sidewalk climbing the same hill scored
+# lower, because its neighbours sit at similar heights in the other three
+# directions. The number answered "is this a hilly part of the city",
+# and the feature has to answer "is this stretch of sidewalk steep to
+# push a robot along".
+#
+# Every segment is a two-point line, so the grade along it is defined
+# without ambiguity: the height difference between its ends over the
+# distance between them.
+#
+# The magnitude is what the score needs. Uphill and downhill are equally
+# hard to traverse, the weight polarity is negative either way, and a
+# sidewalk segment has no inherent direction of travel, so a signed grade
+# would only record which end the geometry happens to start at.
 
-# Ignore neighbours closer than this. Slope is |height difference| over
-# distance, and the code used to exclude only distance == 0. Centroids
-# come as close as 0.000079 ft, a thousandth of an inch, so a single
-# one-foot DEM step across that gap produced a slope near 100. The
-# observed maximum was 7.69 against a p99 of 0.166, and min-max
-# normalization then divided every real value by that outlier.
+# Sample over at least this distance along the segment's own bearing.
 #
-# 5 ft is where the DEM's own quantisation stops dominating: the DEM is
-# integer feet, so the smallest non-zero height difference it can report
-# is 1 ft, which over 5 ft is already a 20% grade.
-SLOPE_MIN_BASELINE_FT = 5.0
+# The DEM is uint16, one value per whole foot, so the smallest height
+# difference it can report is 1 ft. Over a short segment that quantum
+# alone is a large false grade: 1 ft over the p10 segment length of
+# 6.2 ft reads as a 16% grade. Below this baseline the sample points move
+# out along the line the segment runs on, away from its midpoint, which
+# keeps the direction being measured and gives the DEM room to register a
+# real height change. 25 ft holds the quantum to a 4% step, and only the
+# 36% of segments shorter than 20 ft are extended at all.
+SLOPE_BASELINE_FT = 25.0
 
-# Clip the mean slope here before normalizing. A fixed physical ceiling
-# rather than a percentile of the run, so the value does not depend on
-# which segments happen to be in the snapshot.
-#
-# 0.30 is a 30% grade. NYC's steepest street is about 32% and an ADA
-# ramp maxes at 8.3%, so nothing above this is a sidewalk a robot
-# traverses; it is the integer DEM divided by a short baseline. The
-# citywide p99.9 is 0.2963, so this clips about 0.1% of segments.
-#
-# On a full-city run enough segments clip that min_max_normalize sees a
-# maximum of exactly this value, which makes the normalized feature read
-# as a fraction of a 30% grade. A small bbox run need not contain one,
-# and there the window is still whatever that extract spans, as it is
-# for every other feature.
 SLOPE_MAX_GRADE = 0.30
 

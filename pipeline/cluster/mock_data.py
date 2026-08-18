@@ -8,6 +8,8 @@ columns of dataset.ipynb cell 116 (score_dataset.csv).
 import random
 from typing import Dict, List, Optional, Tuple
 
+from features_spec import SLOPE_BASELINE_FT
+
 LAB_INPUTS = ('dashcam_detections', 'surveillance_values', 'dem')
 
 # Fallback area for mock runs without --bbox. It matches the RUNBOOK
@@ -72,7 +74,16 @@ def generate_mock(bbox: Tuple[float, float, float, float], seed: int,
     columns: Dict[str, list] = {
         'segment_id': segment_ids,
         'geometry_wkt': geometries,
-        'ft_above_sea': [0.0 if dem_missing else e for e in elevations],
+        # Stands in for sample_dem: a height at each end of the slope
+        # baseline and the distance sampled. The rise varies by row so
+        # the mock carries a spread of grades rather than one value.
+        'dem_ft_start': [float('nan') if dem_missing else e
+                         for e in elevations],
+        'dem_ft_end': [float('nan') if dem_missing
+                       else e + (i % 7) * 0.25
+                       for i, e in enumerate(elevations)],
+        'dem_run_ft': [float('nan') if dem_missing else SLOPE_BASELINE_FT
+                       for _ in range(n)],
         'width': [4.0 + rng.random() * 10.0 for _ in range(n)],
         'TRAFFIC_Pedestrian': counts(15.0),
         'TRAFFIC_Bike': counts(5.0),

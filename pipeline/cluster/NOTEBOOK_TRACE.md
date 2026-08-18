@@ -40,8 +40,9 @@ Cell numbers are zero-based indices into the notebook cell array.
 | `POLARITIES` | score.ipynb cell 96 (the 19 computed features only). |
 | `CONSTANT_ONE_FEATURES` | score.ipynb cells 26, 76, 86. |
 | `TRAFFIC_MANAGEMENT_COLUMNS` | score.ipynb cell 58. |
-| `SLOPE_MAX_NEIGHBORS` | score.ipynb cell 36. |
-| `SLOPE_MIN_BASELINE_FT`, `SLOPE_MAX_GRADE` | **Not in the notebook.** Deliberate divergences, measured and justified beside the constants in `features_spec.py`. The notebook's 50 ft radius is also gone: it ran over ~465k sampled points, this runs over one centroid per segment, and at that spacing the radius left 35% of segments with no neighbour and a 0.0 that could not be told from flat ground. |
+| `SLOPE_BASELINE_FT` | **Not in the notebook.** The notebook measured relief around a point; this pipeline measures the grade along the segment, so it needs a minimum sampling distance rather than a neighbour count. Justified beside the constant in `features_spec.py`. |
+| `SLOPE_MAX_GRADE` | **Not in the notebook.** A deliberate divergence, measured and justified beside the constant in `features_spec.py`. |
+| `slope_gradient` | **Diverges from score.ipynb cell 36.** The notebook averaged \|height difference\| / distance to the nearest points in every direction, which measures the relief around a location. The feature has to say whether a stretch of sidewalk is steep to push a robot along, so this pipeline takes the height difference between the two ends of the segment over the distance between them. |
 
 ## compute_score.py (CLI wrapper)
 

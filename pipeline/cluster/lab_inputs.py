@@ -11,6 +11,7 @@ import os
 from typing import List, Optional, Sequence
 
 import pipeline_common as pc  # noqa: E402 (import path set by caller)
+from features_spec import SLOPE_BASELINE_FT  # noqa: E402
 
 # Traffic cone constants from traffic.py.
 MAX_DISTANCE_FT = 150
@@ -155,39 +156,106 @@ def read_surveillance(surveillance_csv: str, segments) -> Optional[List[float]]:
     return [float(counts.get(i, 0)) for i in range(len(segments))]
 
 
-def sample_dem(dem_path: str, segments) -> Optional[List[float]]:
-    """Sample the 1-foot DEM at each segment centroid.
+def sample_dem(dem_path: str, segments) -> Optional[dict]:
+    """Sample the DEM at both ends of each segment's slope baseline.
 
-    Port of dataset.ipynb cells 18-20. The raster is downsampled by a factor
-    of 10 with bilinear resampling, then sampled at the point positions.
-    Returns feet above sea level per segment, or None when the DEM or the
-    rasterio package is absent.
+    The slope feature is the grade along the sidewalk, so it needs a
+    height at each end of the segment, not one height at its centroid.
+    Returns {'dem_ft_start', 'dem_ft_end', 'dem_run_ft'} aligned to the
+    segments, or None when the DEM or the rasterio package is absent.
+
+    A segment shorter than SLOPE_BASELINE_FT has its two sample points
+    pushed out along its own bearing, away from the midpoint, until they
+    sit that far apart. `dem_run_ft` is the distance actually sampled, so
+    the caller divides by the right number.
+
+    Height comes from bilinear interpolation over the downsampled grid,
+    computed in float. Two integer steps matter here and only the second
+    is avoidable. The raster is uint16, one value per whole foot, so the
+    source itself is quantised. GDAL then resamples in the source dtype
+    whatever out_dtype asks for, so a decimated read returns whole feet
+    again and the smoothing does not smooth. Interpolating in numpy
+    instead recovers the fraction between the cells, which is what keeps
+    a 1 ft quantum from dominating every short baseline.
+
+    A point outside the raster reads as NaN, not as 0.0. Elevation 0 is a
+    real height in a coastal city, so the two must not share a value. The
+    caller carries the NaN through to the feature column, where it is the
+    no-data marker of contract section 3.2.
     """
+    import math
+
+    import numpy as np
+
     if not os.path.exists(dem_path):
         return None
     try:
         import rasterio
-        from rasterio.enums import Resampling
     except ImportError:
         pc.log('lab_inputs: rasterio is not installed. DEM sampling needs it. '
                'Install rasterio on the cluster for real runs.')
         return None
+
     factor = 10
     with rasterio.open(dem_path) as src:
         new_transform = src.transform * src.transform.scale(factor, factor)
         new_width = src.width // factor
         new_height = src.height // factor
-        band = src.read(
-            1,
-            out_shape=(new_height, new_width),
-            resampling=Resampling.bilinear,
-        )
-    centroids = segments.geometry.to_crs(pc.CRS_PROJ).centroid
-    out: List[float] = []
-    for point in centroids:
-        row, col = rasterio.transform.rowcol(new_transform, point.x, point.y)
-        if 0 <= row < new_height and 0 <= col < new_width:
-            out.append(float(band[row, col]))
-        else:
-            out.append(0.0)
-    return out
+        band = src.read(1, out_shape=(new_height, new_width)).astype('float64')
+    inv = ~new_transform
+
+    def height_at(x: float, y: float) -> float:
+        """Bilinear height at a projected point. NaN outside the raster."""
+        col, row = inv * (x, y)
+        # The transform maps to cell corners. Shift to cell centres so
+        # the interpolation weights are correct.
+        col -= 0.5
+        row -= 0.5
+        c0 = math.floor(col)
+        r0 = math.floor(row)
+        fc = col - c0
+        fr = row - r0
+        if r0 < 0 or c0 < 0 or r0 + 1 >= new_height or c0 + 1 >= new_width:
+            return float('nan')
+        top = band[r0, c0] * (1.0 - fc) + band[r0, c0 + 1] * fc
+        bottom = band[r0 + 1, c0] * (1.0 - fc) + band[r0 + 1, c0 + 1] * fc
+        return float(top * (1.0 - fr) + bottom * fr)
+
+    geoms = segments.geometry.to_crs(pc.CRS_PROJ)
+    starts: List[float] = []
+    ends: List[float] = []
+    runs: List[float] = []
+    for geom in geoms:
+        coords = list(geom.coords)
+        if len(coords) < 2:
+            starts.append(float('nan'))
+            ends.append(float('nan'))
+            runs.append(float('nan'))
+            continue
+        (x0, y0), (x1, y1) = coords[0], coords[-1]
+        dx = x1 - x0
+        dy = y1 - y0
+        length = math.hypot(dx, dy)
+        if length <= 0:
+            # A zero-length segment has no bearing to measure along.
+            starts.append(float('nan'))
+            ends.append(float('nan'))
+            runs.append(float('nan'))
+            continue
+        run = length
+        ax, ay, bx, by = x0, y0, x1, y1
+        if length < SLOPE_BASELINE_FT:
+            # Push both ends out along the bearing, keeping the midpoint.
+            mx = (x0 + x1) / 2.0
+            my = (y0 + y1) / 2.0
+            ux = dx / length
+            uy = dy / length
+            half = SLOPE_BASELINE_FT / 2.0
+            ax, ay = mx - ux * half, my - uy * half
+            bx, by = mx + ux * half, my + uy * half
+            run = SLOPE_BASELINE_FT
+        starts.append(height_at(ax, ay))
+        ends.append(height_at(bx, by))
+        runs.append(run)
+    return {'dem_ft_start': starts, 'dem_ft_end': ends, 'dem_run_ft': runs}
+

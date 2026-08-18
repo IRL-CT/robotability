@@ -20,8 +20,7 @@ from score_core import (  # noqa: E402,F401
     POLARITIES,
     CONSTANT_ONE_FEATURES,
     TRAFFIC_MANAGEMENT_COLUMNS,
-    SLOPE_MAX_NEIGHBORS,
-    SLOPE_MIN_BASELINE_FT,
+    SLOPE_BASELINE_FT,
     SLOPE_MAX_GRADE,
     _is_nan,
     load_weights,
@@ -45,20 +44,6 @@ def _read_raw_table(path: str):
     return table
 
 
-def _project_centroids(geom_wkt: Sequence[str]):
-    """Return segment centroids in EPSG:2263 feet for the slope search."""
-    from pyproj import Transformer
-    from shapely import wkt
-
-    transformer = Transformer.from_crs(pc.CRS_WGS, pc.CRS_PROJ, always_xy=True)
-    out = []
-    for text in geom_wkt:
-        centroid = wkt.loads(text).centroid
-        x, y = transformer.transform(centroid.x, centroid.y)
-        out.append((x, y))
-    return out
-
-
 def main(argv: Optional[Sequence[str]] = None) -> int:
     parser = argparse.ArgumentParser(
         description='Normalize features and compute Robotability scores.',
@@ -74,7 +59,8 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     table = _read_raw_table(args.input)
     columns = table.column_names
     required = [
-        'segment_id', 'geometry_wkt', 'ft_above_sea', 'width',
+        'segment_id', 'geometry_wkt', 'width',
+        'dem_ft_start', 'dem_ft_end', 'dem_run_ft',
         'TRAFFIC_Pedestrian', 'TRAFFIC_Bike', 'TRAFFIC_Car', 'clutter',
         'ped_demand',
         'sidewalk_quality', '4g_minup', '4g_mindown',
@@ -92,9 +78,9 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     def col(name: str) -> list:
         return table.column(name).to_pylist()
 
-    pc.log('compute_score: project centroids and compute slope gradient')
-    centroids = _project_centroids(col('geometry_wkt'))
-    slope_raw = slope_gradient(col('ft_above_sea'), centroids)
+    pc.log('compute_score: compute the grade along each segment')
+    slope_raw = slope_gradient(col('dem_ft_start'), col('dem_ft_end'),
+                               col('dem_run_ft'))
 
     raw = {name: col(name) for name in required
            if name not in ('segment_id', 'geometry_wkt')}

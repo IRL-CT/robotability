@@ -191,16 +191,24 @@ def build_real(work_dir: str, bbox: Optional[tuple], config: Dict,
     columns['n_cameras_median'] = _fill(cameras, n)
 
     dem_path = lab.get('dem_path', '')
-    elevations = None
+    dem = None
     if dem_path and not lab_blocked('dem'):
-        # The slowest join. It reads a 3.4 GB raster once per segment
-        # centroid, so on the full city this is the long silent stretch.
-        elevations = _timed('dem', lab_inputs.sample_dem, dem_path, segments)
+        # The slowest join. It reads a 3.4 GB raster once, then samples
+        # two points per segment, so on the full city this is the long
+        # silent stretch.
+        dem = _timed('dem', lab_inputs.sample_dem, dem_path, segments)
     else:
         pc.log('build_features: dem skipped (no lab path)')
-    if elevations is None:
+    if dem is None:
         missing.append('dem')
-    columns['ft_above_sea'] = _fill(elevations, n)
+        # No raster at all is not the same as a segment the raster
+        # misses. With nothing to read, every segment carries the
+        # no-data marker and slope_gradient reads NaN.
+        dem = {'dem_ft_start': [float('nan')] * n,
+               'dem_ft_end': [float('nan')] * n,
+               'dem_run_ft': [float('nan')] * n}
+    for key in ('dem_ft_start', 'dem_ft_end', 'dem_run_ft'):
+        columns[key] = dem[key]
 
     columns['avg_speed_limit'] = [25.0] * n
     speed_limits_path = os.path.join(work_dir, 'data/dot_VZV_Speed_Limits.csv')
