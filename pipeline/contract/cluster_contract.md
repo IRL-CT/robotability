@@ -232,8 +232,8 @@ errors exit with code 2.
 | `parquet_parse` | The parquet parses within the allowed subset. | Section 3.2 |
 | `parquet_schema` | Column names, order, and types match section 3.2 exactly. No nulls. | Section 3.2 |
 | `row_count_match` | Parquet row count equals manifest `row_count`. | Section 3.4 |
-| `feature_range` | Every normalized feature lies in [0, 1]. | `score.ipynb` cell 92 assert |
-| `score_range` | Every score lies in [-0.4049, 0.5952]. | Derived below |
+| `feature_range` | Every normalized feature lies in [0, 1]. NaN is not a permitted value: it is not in the range and it is not a null. | `score.ipynb` cell 92 assert |
+| `score_range` | Every score lies in [-0.4049, 0.5952]. NaN is not a permitted value. | Derived below |
 | `score_stats_match` | Parquet score min/max match `score_min`/`score_max` (tolerance 1e-6). | Section 3.4 |
 | `feature_stats_match` | Parquet per-feature min/max match `feature_stats` (tolerance 1e-6). | Section 3.4 |
 

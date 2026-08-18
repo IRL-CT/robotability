@@ -764,7 +764,7 @@ function readParquetForValidation(buf) {
 
   const stats = new Map();
   for (const leaf of leaves) {
-    stats.set(leaf.name, { count: 0, min: Infinity, max: -Infinity, nullCount: 0 });
+    stats.set(leaf.name, { count: 0, min: Infinity, max: -Infinity, nullCount: 0, nanCount: 0 });
   }
   const leafByName = new Map(leaves.map((l) => [l.name, l]));
 
@@ -836,6 +836,13 @@ function readParquetForValidation(buf) {
             throw new Error(`unsupported encoding ${enc}; the contract allows PLAIN or dictionary`);
           }
           for (const v of values) {
+            // NaN must be counted, never compared. Both comparisons
+            // below are false for NaN, so a NaN would leave min/max
+            // untouched and pass every range rule unseen.
+            if (Number.isNaN(v)) {
+              st.nanCount += 1;
+              continue;
+            }
             if (v < st.min) st.min = v;
             if (v > st.max) st.max = v;
           }
@@ -1051,10 +1058,24 @@ function validateSnapshot(dir, opts) {
           `${f}: values must lie in [${FEATURE_MIN}, ${FEATURE_MAX}], found min ${st.min}, max ${st.max}`,
         );
       }
+      // A NaN is not in [0, 1] and is not a null, so neither the range
+      // check above nor the null check catches it.
+      if (st.nanCount > 0) {
+        fail(
+          'feature_range',
+          `${f}: holds ${st.nanCount} NaN values; every value must lie in [${FEATURE_MIN}, ${FEATURE_MAX}]`,
+        );
+      }
     }
 
     // Rule score_range: every score must lie in [-0.4049, 0.5952].
     const sc = pq.stats.get('score');
+    if (sc.nanCount > 0) {
+      fail(
+        'score_range',
+        `score holds ${sc.nanCount} NaN values; every score must lie in [${SCORE_MIN}, ${SCORE_MAX}]`,
+      );
+    }
     if (sc.count > 0 && (sc.min < SCORE_MIN || sc.max > SCORE_MAX)) {
       fail(
         'score_range',
