@@ -100,6 +100,12 @@ function patchDist(): void {
   const siteManifest = JSON.parse(originalManifest.toString('utf8')) as {
     snapshots: Array<Record<string, unknown>>;
   };
+  // Make the manifest hermetic: keep the baseline, drop every published
+  // snapshot. A real snapshot (e.g. 2026-08-18) is newer than the fixtures
+  // and would auto-load in their place, breaking the date assertions below.
+  siteManifest.snapshots = siteManifest.snapshots.filter(
+    (snapshot) => snapshot['date'] === DATE_BASELINE
+  );
   for (const tag of ['fixture-a', 'fixture-b']) {
     const fixtureDir = path.join(specDir, 'fixtures', tag);
     const distSnapshotDir = path.join(distDir, 'snapshots', tag);

@@ -166,6 +166,10 @@ test.beforeAll(() => {
   const siteManifest = JSON.parse(originalManifest.toString('utf8')) as {
     snapshots: Array<{ tag?: string }>;
   };
+  // Make the manifest hermetic: keep the baseline, drop every published
+  // snapshot. A real snapshot is newer than the fixture and would auto-load
+  // in its place, so the fixture (and its feature vectors) would never load.
+  siteManifest.snapshots = siteManifest.snapshots.filter((s) => s.tag === 'baseline');
   const fixtureEntry = JSON.parse(
     fs.readFileSync(path.join(fixtureDir, 'manifest.json'), 'utf8')
   ) as Record<string, unknown>;
