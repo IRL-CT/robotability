@@ -4,7 +4,12 @@
 // skewed: the 2026 city put 81.7% of slope_gradient in the first colour.
 // These tests pin the decile behaviour and the guards MapLibre needs.
 import { describe, expect, it } from 'vitest';
-import { SCORE_COLORS, featureBreaks, quantileBreaks } from './constants';
+import {
+  SCORE_COLORS,
+  featureBreaks,
+  featureRampExpression,
+  quantileBreaks,
+} from './constants';
 
 const STOPS = SCORE_COLORS.length;
 
@@ -78,5 +83,52 @@ describe('quantileBreaks', () => {
   it('returns null when no finite value exists', () => {
     expect(quantileBreaks([])).toBeNull();
     expect(quantileBreaks([Number.NaN, Number.POSITIVE_INFINITY])).toBeNull();
+  });
+});
+
+describe('featureRampExpression polarity', () => {
+  const breaks = [0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1];
+  const worst = `rgb(${SCORE_COLORS[0].join(', ')})`;
+  const best = `rgb(${SCORE_COLORS[SCORE_COLORS.length - 1].join(', ')})`;
+
+  // The interpolate stops sit after the no-data case: value, colour, ...
+  function stopsOf(expr: unknown[]): Array<number | string> {
+    const interp = expr[3] as unknown[];
+    return interp.slice(3) as Array<number | string>;
+  }
+
+  it('paints a high value green when more is better', () => {
+    const stops = stopsOf(featureRampExpression(breaks, 1));
+    expect(stops[0]).toBe(0);
+    expect(stops[1]).toBe(worst);
+    expect(stops[stops.length - 2]).toBe(1);
+    expect(stops[stops.length - 1]).toBe(best);
+  });
+
+  it('paints a high value red when more is worse', () => {
+    // slope_gradient, intersection_safety and five others are polarity
+    // -1. Painting them like the rest put flat streets in red and hills
+    // in green.
+    const stops = stopsOf(featureRampExpression(breaks, -1));
+    expect(stops[0]).toBe(0);
+    expect(stops[1]).toBe(best);
+    expect(stops[stops.length - 2]).toBe(1);
+    expect(stops[stops.length - 1]).toBe(worst);
+  });
+
+  it('keeps the break values ascending in both directions', () => {
+    for (const polarity of [1, -1]) {
+      const stops = stopsOf(featureRampExpression(breaks, polarity));
+      const values = stops.filter((_, i) => i % 2 === 0) as number[];
+      for (let i = 1; i < values.length; i += 1) {
+        expect(values[i]).toBeGreaterThan(values[i - 1]);
+      }
+    }
+  });
+
+  it('defaults to the more-is-better direction', () => {
+    expect(stopsOf(featureRampExpression(breaks))).toEqual(
+      stopsOf(featureRampExpression(breaks, 1))
+    );
   });
 });

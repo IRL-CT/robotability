@@ -162,10 +162,26 @@ export function quantileBreaks(
 // distinction is the whole point of this view.
 export const NO_DATA_COLOR = 'rgb(120, 120, 120)';
 
-export function featureRampExpression(breaks: readonly number[]): unknown[] {
+// Red always means worse for a robot, on every layer.
+//
+// The ramp runs dark red to dark green, and the score layer reads it
+// directly because a high score is good. A feature does not: seven of
+// the nineteen carry polarity -1, where a high value is what harms the
+// score. Painting those the same way put flat Lower East Side blocks in
+// red and the hills of the Bronx in green, the wrong way round on both
+// counts, because low slope took the low end of the ramp.
+//
+// So a negative-polarity feature reads the colours in reverse. The
+// breaks stay in ascending order, which MapLibre requires; only the
+// colour paired with each one flips.
+export function featureRampExpression(
+  breaks: readonly number[],
+  polarity: number = 1
+): unknown[] {
   const stops: Array<number | string> = [];
+  const last = SCORE_COLORS.length - 1;
   for (let i = 0; i < SCORE_COLORS.length; i += 1) {
-    const color = SCORE_COLORS[i];
+    const color = SCORE_COLORS[polarity < 0 ? last - i : i];
     stops.push(breaks[i]);
     stops.push(`rgb(${color[0]}, ${color[1]}, ${color[2]})`);
   }

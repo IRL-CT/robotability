@@ -66,6 +66,10 @@ export default function LayerControls(props: LayerControlsProps) {
     featureDisabledReason,
   } = props;
   const isScore = colorBy === SCORE_LAYER;
+  // A negative-polarity feature paints red at its high end. See
+  // featureRampExpression.
+  const invertRamp =
+    !isScore && (WEIGHTS.find((w) => w.feature === colorBy)?.polarity ?? 1) < 0;
   return (
     <div
       data-testid="layer-controls"
@@ -145,12 +149,16 @@ export default function LayerControls(props: LayerControlsProps) {
       </div>
       <div data-testid="score-legend">
         {SCORE_COLORS.map((color, index) => {
-          // Both ramps now use deciles of the snapshot's own values, so
-          // the label is a percentile either way. A feature used to be
-          // labelled by its normalized value, which read as flat because
-          // the ramp was linear over [0, 1].
+          // Both ramps use deciles of the snapshot's own values, so the
+          // label is a percentile either way.
+          //
+          // A negative-polarity feature paints its ramp in reverse, so
+          // red keeps meaning worse for a robot. The legend has to
+          // reverse with it: the swatch drawn beside "90%" must be the
+          // colour a segment in the 90th percentile actually gets.
           const fraction = index / (SCORE_COLORS.length - 1);
           const percentile = `${Math.round(fraction * 100)}%`;
+          if (invertRamp) color = SCORE_COLORS[SCORE_COLORS.length - 1 - index];
           return (
             <div
               key={percentile}
@@ -175,6 +183,12 @@ export default function LayerControls(props: LayerControlsProps) {
         <span>Low</span>
         <span>High</span>
       </div>
+      {invertRamp && (
+        <div data-testid="polarity-note" style={{ marginTop: '0.35rem', opacity: 0.8 }}>
+          More of this feature is worse for a robot, so the ramp runs the
+          other way: red is the high end.
+        </div>
+      )}
       {!isScore && (
         <div
           data-testid="no-data-key"

@@ -24,7 +24,7 @@ import {
   scoreToPercent as scorePercentOnRamp,
   type DeploymentSite,
 } from './constants';
-import { loadFeatureRows } from './breakdownData';
+import { WEIGHTS, loadFeatureRows } from './breakdownData';
 import {
   DEPLOYMENTS_LAYER_ID,
   deploymentEmbedUrl,
@@ -467,7 +467,11 @@ export default function MapCanvas() {
         // Paint first so tiles already on screen pick up state as it
         // arrives, rather than staying on the score ramp until the last
         // row lands.
-        paint(featureRampExpression(quantileBreaks(values) ?? featureBreaks()));
+        // Seven features carry polarity -1, where a high value is the
+        // harmful one. The ramp flips for those so red keeps meaning
+        // worse for a robot on every layer.
+        const polarity = WEIGHTS.find((w) => w.feature === colorBy)?.polarity ?? 1;
+        paint(featureRampExpression(quantileBreaks(values) ?? featureBreaks(), polarity));
         // Write in chunks with a yield between them. Half a million
         // setFeatureState calls in one pass blocks the main thread long
         // enough to freeze panning and zooming.
