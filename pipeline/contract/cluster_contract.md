@@ -133,10 +133,24 @@ Columns must appear in this exact order:
 
 Constraints:
 
-- Every feature column holds normalized values in [0, 1]. This mirrors the
-  assert in `score.ipynb` cell 92.
-- Every `score` lies in [-0.4049, 0.5952]. See section 4 for the derivation.
-- Columns must be REQUIRED. Null values are not allowed.
+- Every feature column holds normalized values in [0, 1], or NaN. This
+  mirrors the assert in `score.ipynb` cell 92.
+- NaN in a feature column is the no-data marker. It means the pipeline had
+  no measurement for that segment, which is different from a measurement
+  of zero. The dashcam features carry it: `bicycle_traffic` and
+  `vehicle_traffic` are NaN for every segment no dashcam drove past,
+  84,260 of 491,894 segments on the 2026 basemap. `pedestrian_density`
+  carried it too until it moved to the DOT Pedestrian Demand Map.
+  Three rules follow from this marker, and all three already hold:
+  `score_core` counts a NaN feature as a zero contribution, so no score is
+  ever NaN; `feature_stats` records the min and max of the finite values
+  only; and the map draws a NaN segment in its "No value" colour instead
+  of at the bottom of the ramp.
+- Every `score` lies in [-0.4049, 0.5952]. A score must never be NaN. A
+  NaN score means the scorer failed, not that data was missing.
+- Columns must be REQUIRED. Null values are not allowed. NaN is a value,
+  not a null, and the two must not be confused: a null is a schema fault,
+  and NaN is a measurement that does not exist.
 - Data pages must use version 1.
 - The codec must be UNCOMPRESSED or SNAPPY.
 - The encoding must be PLAIN or dictionary (PLAIN_DICTIONARY / RLE_DICTIONARY).
@@ -232,8 +246,8 @@ errors exit with code 2.
 | `parquet_parse` | The parquet parses within the allowed subset. | Section 3.2 |
 | `parquet_schema` | Column names, order, and types match section 3.2 exactly. No nulls. | Section 3.2 |
 | `row_count_match` | Parquet row count equals manifest `row_count`. | Section 3.4 |
-| `feature_range` | Every normalized feature lies in [0, 1]. NaN is not a permitted value: it is not in the range and it is not a null. | `score.ipynb` cell 92 assert |
-| `score_range` | Every score lies in [-0.4049, 0.5952]. NaN is not a permitted value. | Derived below |
+| `feature_range` | Every normalized feature lies in [0, 1], or is NaN. NaN is the no-data marker of section 3.2. | `score.ipynb` cell 92 assert |
+| `score_range` | Every score lies in [-0.4049, 0.5952]. A score must never be NaN. | Derived below |
 | `score_stats_match` | Parquet score min/max match `score_min`/`score_max` (tolerance 1e-6). | Section 3.4 |
 | `feature_stats_match` | Parquet per-feature min/max match `feature_stats` (tolerance 1e-6). | Section 3.4 |
 
@@ -254,8 +268,10 @@ node pipeline/contract/validate_snapshot.mjs --make-fixture <dir> [--rows <n>]
 
 - `--relax-row-count <n>` replaces the row count band with the exact value
   `n`. Small-area test runs use it. Full-city runs must not use it.
-- `--selftest` builds one valid synthetic snapshot and five corrupt variants
-  in a temp dir. It asserts the exit codes and prints `SELFTEST 6/6 PASS`.
+- `--selftest` builds eight synthetic snapshots in a temp dir: two the
+  validator must accept, and six it must reject. It asserts the exit codes
+  and prints `SELFTEST 8/8 PASS`. One accepted case carries a NaN feature,
+  which holds the no-data marker of section 3.2 in place.
 - `--make-fixture <dir>` writes a small valid synthetic snapshot for tests.
 
 ## 5. Partial-flag policy

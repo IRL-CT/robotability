@@ -1058,14 +1058,12 @@ function validateSnapshot(dir, opts) {
           `${f}: values must lie in [${FEATURE_MIN}, ${FEATURE_MAX}], found min ${st.min}, max ${st.max}`,
         );
       }
-      // A NaN is not in [0, 1] and is not a null, so neither the range
-      // check above nor the null check catches it.
-      if (st.nanCount > 0) {
-        fail(
-          'feature_range',
-          `${f}: holds ${st.nanCount} NaN values; every value must lie in [${FEATURE_MIN}, ${FEATURE_MAX}]`,
-        );
-      }
+      // NaN is permitted here. It is the no-data marker of contract
+      // section 3.2: the pipeline had no measurement for that segment,
+      // which is not the same as a measurement of zero. The scorer
+      // counts it as a zero contribution and the map draws it in its
+      // "No value" colour. The score column is where NaN is a fault,
+      // and score_range below rejects it there.
     }
 
     // Rule score_range: every score must lie in [-0.4049, 0.5952].
@@ -1119,6 +1117,24 @@ function validateSnapshot(dir, opts) {
 // Fixture builder. The selftest and --make-fixture both use it. It writes a
 // small but fully contract-shaped snapshot: 8 rows by default.
 // ---------------------------------------------------------------------------
+
+// Min and max over the finite values only. NaN is the no-data marker of
+// contract section 3.2, and the manifest records the finite range around
+// it. This mirrors _finite_min_max in the cluster's emit_artifacts.
+// Math.min and Math.max return NaN when any input is NaN, and
+// JSON.stringify writes NaN as null, so a fixture that used them would
+// fail manifest_schema before it reached the rule under test.
+function finiteMin(values) {
+  let out = Infinity;
+  for (const v of values) if (Number.isFinite(v) && v < out) out = v;
+  return out === Infinity ? 0 : out;
+}
+
+function finiteMax(values) {
+  let out = -Infinity;
+  for (const v of values) if (Number.isFinite(v) && v > out) out = v;
+  return out === -Infinity ? 0 : out;
+}
 
 function buildFixtureSnapshot(dir, opts = {}) {
   const rowCount = opts.rowCount ?? 8;
@@ -1199,12 +1215,12 @@ function buildFixtureSnapshot(dir, opts = {}) {
   const manifest = {
     date: todayUtcString(dateOffsetDays),
     row_count: rowCountOverride ?? rowCount,
-    score_min: Math.min(...scores),
-    score_max: Math.max(...scores),
+    score_min: finiteMin(scores),
+    score_max: finiteMax(scores),
     feature_stats: Object.fromEntries(
       FEATURES.map((f, fi) => [
         f,
-        { min: Math.min(...featureVals[fi]), max: Math.max(...featureVals[fi]) },
+        { min: finiteMin(featureVals[fi]), max: finiteMax(featureVals[fi]) },
       ]),
     ),
     weights_sha256: WEIGHTS_SHA256,
@@ -1222,7 +1238,7 @@ function buildFixtureSnapshot(dir, opts = {}) {
 }
 
 // ---------------------------------------------------------------------------
-// Selftest. It builds one valid snapshot and five corrupt variants, runs the
+// Selftest. It builds two accepted snapshots and six rejected variants, runs the
 // validator CLI as a child process for each, and asserts the exit codes.
 // ---------------------------------------------------------------------------
 
@@ -1253,7 +1269,7 @@ function runSelftest() {
   const prefix = joinPath(tmpBase, 'robotability-selftest-');
   const tmp = fs.mkdtempSync(prefix);
   let passed = 0;
-  const total = 6;
+  const total = 8;
   try {
     // Case 1: a valid snapshot must pass. The small fixture uses the relaxed
     // row count band, exactly like a small-area test run.
@@ -1324,6 +1340,37 @@ function runSelftest() {
       6,
       'sha mismatch rejected',
       r.status !== 0 && r.stderr.includes('file_sha256'),
+      r,
+    );
+
+    // Case 7: a NaN feature value must be ACCEPTED. NaN is the no-data
+    // marker of contract section 3.2, not a fault. This case guards the
+    // marker: a range check written with plain comparisons rejects NaN
+    // only by accident, and one written to reject it breaks every
+    // snapshot that carries a dashcam gap.
+    const d7 = joinPath(tmp, 'feature-nan');
+    buildFixtureSnapshot(d7, {
+      rowCount: 8,
+      corruptFeature: { name: 'bicycle_traffic', row: 0, value: NaN },
+    });
+    r = runValidator(d7, ['--relax-row-count', '8']);
+    passed += assertCase(
+      7,
+      'NaN feature accepted as no-data',
+      r.status === 0,
+      r,
+    );
+
+    // Case 8: a NaN score must be REJECTED. The scorer counts a NaN
+    // feature as a zero contribution, so a NaN score means the scorer
+    // failed rather than that a measurement was missing.
+    const d8 = joinPath(tmp, 'score-nan');
+    buildFixtureSnapshot(d8, { rowCount: 8, corruptScore: { row: 0, value: NaN } });
+    r = runValidator(d8, ['--relax-row-count', '8']);
+    passed += assertCase(
+      8,
+      'NaN score rejected',
+      r.status !== 0 && r.stderr.includes('score_range'),
       r,
     );
   } finally {
