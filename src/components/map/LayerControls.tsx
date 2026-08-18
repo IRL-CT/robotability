@@ -141,17 +141,16 @@ export default function LayerControls(props: LayerControlsProps) {
       )}
 
       <div style={{ fontWeight: 700, marginTop: '0.75rem', marginBottom: '0.5rem' }}>
-        {isScore ? 'Score percentile' : 'Feature value'}
+        {isScore ? 'Score percentile' : 'Feature percentile'}
       </div>
       <div data-testid="score-legend">
         {SCORE_COLORS.map((color, index) => {
-          // For the score the stops are deciles, so the label is a
-          // percentile. For a feature the ramp is linear over the
-          // normalized [0, 1] range, so the label is the value itself.
+          // Both ramps now use deciles of the snapshot's own values, so
+          // the label is a percentile either way. A feature used to be
+          // labelled by its normalized value, which read as flat because
+          // the ramp was linear over [0, 1].
           const fraction = index / (SCORE_COLORS.length - 1);
-          const percentile = isScore
-            ? `${Math.round(fraction * 100)}%`
-            : fraction.toFixed(1);
+          const percentile = `${Math.round(fraction * 100)}%`;
           return (
             <div
               key={percentile}

@@ -17,6 +17,7 @@ import BreakdownPanel from './BreakdownPanel';
 import {
   defaultScoreBreaks,
   featureBreaks,
+  quantileBreaks,
   featureRampExpression,
   parseScoreBreaks,
   scoreRampExpression,
@@ -451,10 +452,22 @@ export default function MapCanvas() {
         const rows = await loadFeatureRows(parquetUrl, activeEntry.tag ?? activeEntry.date);
         if (cancelled) return;
         clearFeatureState();
+        // Colour breaks come from this feature's own distribution, not
+        // from the [0, 1] domain. Every feature is min-max normalized,
+        // so the domain is always full, but the shape is not: a linear
+        // ramp put 81.7% of slope_gradient and 96.3% of
+        // intersection_safety in the first colour. Deciles give every
+        // colour an equal share of segments. A column with no finite
+        // value falls back to the linear ramp.
+        const values: number[] = [];
+        for (const row of rows) {
+          const v = row[colorBy];
+          if (typeof v === 'number' && Number.isFinite(v)) values.push(v);
+        }
         // Paint first so tiles already on screen pick up state as it
         // arrives, rather than staying on the score ramp until the last
         // row lands.
-        paint(featureRampExpression(featureBreaks()));
+        paint(featureRampExpression(quantileBreaks(values) ?? featureBreaks()));
         // Write in chunks with a yield between them. Half a million
         // setFeatureState calls in one pass blocks the main thread long
         // enough to freeze panning and zooming.

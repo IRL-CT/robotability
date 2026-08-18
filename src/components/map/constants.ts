@@ -85,14 +85,70 @@ export function scoreRampExpression(
 // composite score, so a degenerate feature is visible on the map rather
 // than only findable by reading the parquet.
 //
-// Feature values are min-max normalized to [0, 1] by the pipeline, and
-// this ramp is linear over that range on purpose. The score ramp uses
-// deciles, which spread any distribution across all 11 colours and would
-// therefore hide exactly what this view exists to show: a feature that is
-// 0 nearly everywhere must look flat, not colourful.
+// The evenly spaced fallback ramp over the normalized [0, 1] range.
+// Used only when a feature column yields no usable quantiles, which
+// means every value is NaN or the column is empty.
 export function featureBreaks(): number[] {
   const lastIndex = SCORE_COLORS.length - 1;
   return SCORE_COLORS.map((_, i) => i / lastIndex);
+}
+
+// The next representable double above `value`. MapLibre rejects an
+// interpolate expression whose stops repeat, and a skewed feature ties
+// its low stops constantly, so a repeat has to be nudged rather than
+// dropped. JavaScript has no Math.nextafter, so step the IEEE-754 bit
+// pattern by one. This mirrors math.nextafter in the cluster's
+// emit_artifacts.score_quantiles.
+function nextUp(value: number): number {
+  if (!Number.isFinite(value)) return value;
+  if (value === 0) return Number.MIN_VALUE;
+  const buffer = new ArrayBuffer(8);
+  new Float64Array(buffer)[0] = value;
+  const bits = new BigInt64Array(buffer);
+  bits[0] += value > 0 ? 1n : -1n;
+  return new Float64Array(buffer)[0];
+}
+
+// Evenly spaced quantiles of the finite values, one per ramp colour.
+//
+// A linear ramp over [0, 1] renders most features as one flat colour.
+// The pipeline min-max normalizes each feature, so the column spans the
+// full range, but the distributions are heavily skewed: slope_gradient
+// puts 81.7% of the 2026 city in the first bucket and
+// intersection_safety puts 96.3% there. Ten of the eleven colours never
+// appeared, exactly as they did not for the score before it shipped its
+// own breaks.
+//
+// Quantiles put an equal share of segments in every colour whatever the
+// shape of the distribution. The legend labels a feature by percentile
+// to match, so the colour keeps a true meaning.
+//
+// The result is strictly increasing. Returns null when no finite value
+// exists, so the caller falls back to the linear ramp.
+export function quantileBreaks(
+  values: readonly number[],
+  count: number = SCORE_COLORS.length
+): number[] | null {
+  const finite: number[] = [];
+  for (const v of values) {
+    if (typeof v === 'number' && Number.isFinite(v)) finite.push(v);
+  }
+  if (finite.length === 0 || count < 2) return null;
+  finite.sort((a, b) => a - b);
+  const last = finite.length - 1;
+  const out: number[] = [];
+  for (let i = 0; i < count; i += 1) {
+    const pos = (last * i) / (count - 1);
+    const lo = Math.floor(pos);
+    const hi = Math.min(lo + 1, last);
+    const frac = pos - lo;
+    let value = finite[lo] + (finite[hi] - finite[lo]) * frac;
+    if (out.length > 0 && value <= out[out.length - 1]) {
+      value = nextUp(out[out.length - 1]);
+    }
+    out.push(value);
+  }
+  return out;
 }
 
 // The paint expression for a feature layer. The value arrives through
