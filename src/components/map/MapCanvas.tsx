@@ -9,7 +9,10 @@ import type {
   ExpressionSpecification,
   InterpolationSpecification,
   Map as MapLibreMap,
+  MapGeoJSONFeature,
   MapLayerMouseEvent,
+  MapMouseEvent,
+  Point,
 } from 'maplibre-gl';
 import { Protocol } from 'pmtiles';
 import 'maplibre-gl/dist/maplibre-gl.css';
@@ -76,6 +79,19 @@ const SEGMENTS_SOURCE_MINZOOM = 9;
 const SEGMENTS_SOURCE_MAXZOOM = 14;
 const CENSUS_SOURCE_MINZOOM = 4;
 const CENSUS_SOURCE_MAXZOOM = 14;
+
+// Cap the device pixel ratio on HiDPI screens. MapLibre renders at the
+// full devicePixelRatio by default, so a 2x Retina display paints four
+// times the pixels of a 1x display. With ~492k line segments on screen
+// that GPU load is a large share of the frame budget. A cap of 1.5 keeps
+// most of the sharpness for a big fraction of the pixels. Set this to
+// window.devicePixelRatio (or remove the setPixelRatio call) to restore
+// full native sharpness at the cost of frame rate.
+const MAX_PIXEL_RATIO = 1.5;
+
+// A larger tile cache keeps more decoded tiles resident, so panning back
+// over already-seen ground reuses tiles instead of re-decoding them.
+const MAX_TILE_CACHE_SIZE = 250;
 
 // The layer-spec registry. Every layer the map shows is registered here.
 // A style switch re-adds every entry, so no layer is lost.
@@ -297,6 +313,25 @@ function unregisterLayer(map: MapLibreMap, key: string): void {
   }
 }
 
+// Run a callback once the style is loaded. Waits on both styledata and
+// idle: the style can finish loading between two styledata events, so a
+// styledata-only wait can strand the callback forever. Mirrors the retry
+// loop in queueLayerFlush. The ran guard makes the double listener safe.
+function whenStyleLoaded(map: MapLibreMap, fn: () => void): void {
+  let ran = false;
+  const attempt = (): void => {
+    if (ran) return;
+    if (!map.isStyleLoaded()) {
+      map.once('styledata', attempt);
+      map.once('idle', attempt);
+      return;
+    }
+    ran = true;
+    fn();
+  };
+  attempt();
+}
+
 // Switch the basemap style. Capture the view first. Re-add every
 // registered layer after the new style loads. Restore the view last.
 function switchStyle(
@@ -312,11 +347,19 @@ function switchStyle(
   };
   window.__robotabilityMapStyleUrl = nextStyleUrl;
   map.setStyle(nextStyleUrl);
+  // setStyle can take a diff path that keeps isStyleLoaded() true while
+  // the style is still applied, so never restore synchronously. Wait for
+  // the first styledata or idle event, then retry until the style reports
+  // loaded. The restored guard keeps the double listener from running twice.
+  let restored = false;
   const restore = (): void => {
+    if (restored) return;
     if (!map.isStyleLoaded()) {
       map.once('styledata', restore);
+      map.once('idle', restore);
       return;
     }
+    restored = true;
     try {
       applyRegisteredLayers(map);
       afterRestore(map);
@@ -326,6 +369,7 @@ function switchStyle(
     map.jumpTo(view);
   };
   map.once('styledata', restore);
+  map.once('idle', restore);
 }
 
 // The score of one segment as a percent of the ramp. With the decile
@@ -534,7 +578,10 @@ export default function MapCanvas() {
       zoom: INITIAL_ZOOM,
       pitch: INITIAL_PITCH,
       bearing: INITIAL_BEARING,
+      renderWorldCopies: false,
+      maxTileCacheSize: MAX_TILE_CACHE_SIZE,
     });
+    map.setPixelRatio(Math.min(window.devicePixelRatio, MAX_PIXEL_RATIO));
     mapRef.current = map;
     setMapInstance(map);
 
@@ -557,11 +604,11 @@ export default function MapCanvas() {
     tooltip.style.fontSize = '14px';
     container.appendChild(tooltip);
 
-    const positionTooltip = (event: MapLayerMouseEvent, text: string): void => {
+    const positionTooltip = (point: Point, text: string): void => {
       tooltip.textContent = text;
       tooltip.style.display = 'block';
-      tooltip.style.left = `${event.point.x}px`;
-      tooltip.style.top = `${event.point.y}px`;
+      tooltip.style.left = `${point.x}px`;
+      tooltip.style.top = `${point.y}px`;
       tooltip.style.transform = 'translate(-50%, -100%) translateY(-10px)';
     };
 
@@ -569,12 +616,7 @@ export default function MapCanvas() {
       tooltip.style.display = 'none';
     };
 
-    const showSegmentTooltip = (event: MapLayerMouseEvent): void => {
-      const feature = event.features?.[0];
-      if (!feature) {
-        hideTooltip();
-        return;
-      }
+    const showSegmentTooltip = (point: Point, feature: MapGeoJSONFeature): void => {
       const score: unknown = feature.properties['score'];
       if (typeof score !== 'number') {
         hideTooltip();
@@ -592,23 +634,22 @@ export default function MapCanvas() {
         ];
         const shown =
           typeof stateValue === 'number' ? stateValue.toFixed(4) : 'no value';
-        positionTooltip(event, `${active}: ${shown} | Segment ${label}`);
+        positionTooltip(point, `${active}: ${shown} | Segment ${label}`);
         return;
       }
       positionTooltip(
-        event,
+        point,
         `Score: ${scoreToPercent(score, scoreBreaksRef.current).toFixed(1)}% | Segment ${label}`,
       );
     };
 
-    const showDeploymentTooltip = (event: MapLayerMouseEvent): void => {
-      const feature = event.features?.[0];
-      const name: unknown = feature?.properties['name'];
+    const showDeploymentTooltip = (point: Point, feature: MapGeoJSONFeature): void => {
+      const name: unknown = feature.properties['name'];
       if (typeof name !== 'string') {
         hideTooltip();
         return;
       }
-      positionTooltip(event, name);
+      positionTooltip(point, name);
     };
 
     // Apply one snapshot entry to the map. It replaces the segments
@@ -690,11 +731,7 @@ export default function MapCanvas() {
           if (!disposed) setError('The map layers could not be added.');
         }
       };
-      if (map.isStyleLoaded()) {
-        run();
-      } else {
-        map.once('styledata', run);
-      }
+      whenStyleLoaded(map, run);
     };
 
     // Load the manifest and apply the newest snapshot.
@@ -785,24 +822,80 @@ export default function MapCanvas() {
       void loadManifest();
     });
 
-    map.on('mousemove', 'segments', showSegmentTooltip);
-    map.on('mouseleave', 'segments', hideTooltip);
-    map.on('mouseenter', 'segments', () => {
-      map.getCanvas().style.cursor = 'pointer';
-    });
-    map.on('mouseleave', 'segments', () => {
-      map.getCanvas().style.cursor = '';
-    });
-    map.on('click', 'segments', handleSegmentClick);
+    // Consolidated hover handling for the tooltip and the pointer cursor.
+    //
+    // MapLibre implements every layer-specific mousemove, mouseenter and
+    // mouseleave listener as a delegate that runs queryRenderedFeatures on
+    // every raw mousemove event. The previous code registered eight such
+    // listeners, four per layer, so a single mousemove ran eight point
+    // queries against ~492k line features. While panning, mousemove fires
+    // continuously, and those queries blocked the main thread and froze the
+    // map. One map-level handler replaces all eight. It coalesces to
+    // animation frames, runs a single query across both layers, and skips
+    // all work while the camera moves, so a pan never runs a feature query.
+    let hoverFrame: number | null = null;
+    let hoverX = 0;
+    let hoverY = 0;
 
-    map.on('mousemove', 'deployments', showDeploymentTooltip);
-    map.on('mouseleave', 'deployments', hideTooltip);
-    map.on('mouseenter', 'deployments', () => {
-      map.getCanvas().style.cursor = 'pointer';
-    });
-    map.on('mouseleave', 'deployments', () => {
+    const clearHover = (): void => {
+      hideTooltip();
       map.getCanvas().style.cursor = '';
+    };
+
+    const runHoverQuery = (): void => {
+      hoverFrame = null;
+      // No feature queries while the camera moves. Pan, zoom and rotate all
+      // fire mousemove continuously; querying then is what froze the map.
+      // The tooltip reappears on the next mouse move once the camera settles.
+      if (map.isMoving() || map.isZooming() || map.isRotating()) {
+        clearHover();
+        return;
+      }
+      const layers: string[] = [];
+      if (map.getLayer(DEPLOYMENTS_LAYER_ID)) layers.push(DEPLOYMENTS_LAYER_ID);
+      if (map.getLayer('segments')) layers.push('segments');
+      if (layers.length === 0) {
+        clearHover();
+        return;
+      }
+      const point = new maplibregl.Point(hoverX, hoverY);
+      const features = map.queryRenderedFeatures(point, { layers });
+      if (features.length === 0) {
+        clearHover();
+        return;
+      }
+      map.getCanvas().style.cursor = 'pointer';
+      // A deployment marker wins over a segment beneath it. The old code
+      // got this by registering the deployment listener last.
+      const deployment = features.find((f) => f.layer.id === DEPLOYMENTS_LAYER_ID);
+      if (deployment) {
+        showDeploymentTooltip(point, deployment);
+        return;
+      }
+      const segment = features.find((f) => f.layer.id === 'segments');
+      if (segment) {
+        showSegmentTooltip(point, segment);
+      }
+    };
+
+    const handleHover = (event: MapMouseEvent): void => {
+      hoverX = event.point.x;
+      hoverY = event.point.y;
+      if (hoverFrame === null) {
+        hoverFrame = requestAnimationFrame(runHoverQuery);
+      }
+    };
+
+    map.on('mousemove', handleHover);
+    map.on('mouseout', () => {
+      if (hoverFrame !== null) {
+        cancelAnimationFrame(hoverFrame);
+        hoverFrame = null;
+      }
+      clearHover();
     });
+
+    map.on('click', 'segments', handleSegmentClick);
     map.on('click', 'deployments', handleDeploymentClick);
 
     // Re-apply the user visibility and the marker accent after a theme
@@ -841,6 +934,10 @@ export default function MapCanvas() {
 
     return () => {
       disposed = true;
+      if (hoverFrame !== null) {
+        cancelAnimationFrame(hoverFrame);
+        hoverFrame = null;
+      }
       observer.disconnect();
       unsubscribeFlush();
       applySnapshotRef.current = null;
