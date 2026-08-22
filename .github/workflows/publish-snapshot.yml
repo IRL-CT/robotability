@@ -10,7 +10,9 @@
 #   - workflow_dispatch: manual run. The artifact_ref input names the
 #     branch or tag that holds the snapshot artifacts.
 #   - schedule: poll the snapshots-incoming branch head every 6 hours.
-#     This is the fallback path for the SSH deploy key mode.
+#     This is the fallback path for the SSH deploy key mode. The poll
+#     skips a head it has already published. STE 10 records that head in
+#     .github/snapshot-state.json and STE 3 reads it back.
 #
 # The artifacts live at the root of the orphan snapshots-incoming branch:
 # segments.geojson, segments.pmtiles, features.parquet, manifest.json.
@@ -80,7 +82,8 @@ jobs:
               exit 1
               ;;
           esac
-          if ! git ls-remote --exit-code origin "$REF" >/dev/null 2>&1; then
+          LS=$(git ls-remote origin "$REF" 2>/dev/null || true)
+          if [ -z "$LS" ]; then
             if [ "$EVENT_NAME" = "schedule" ]; then
               echo "::warning::snapshot ref $REF not found. Nothing to publish yet."
               echo "skip=true" >> "$GITHUB_OUTPUT"
@@ -88,6 +91,35 @@ jobs:
             fi
             echo "ERROR: snapshot ref $REF not found on origin" >&2
             exit 1
+          fi
+          HEAD_SHA=$(printf '%s\n' "$LS" | head -1 | cut -f1)
+          echo "$REF head is $HEAD_SHA"
+
+          # The poll re-reads the same branch head every 6 hours, and the
+          # cluster leaves the last snapshot on that branch after CI
+          # publishes it. Without this gate the poll re-validates a
+          # snapshot that is already live, which is wasted work while the
+          # snapshot is fresh and a hard failure once it turns 48h old.
+          # That is what broke the 2026-08-18 snapshot: every poll from
+          # 2026-08-20 on died on the freshness rule with the site
+          # perfectly healthy.
+          #
+          # STE 10 records the head it consumed. A real new snapshot is a
+          # new commit, so it never matches here. A manual run and a
+          # cluster dispatch both ignore this gate, so a forced republish
+          # of the same head still works.
+          CONSUMED=$(node -e '
+            const fs = require("fs");
+            try {
+              const s = JSON.parse(
+                fs.readFileSync(".github/snapshot-state.json", "utf8"));
+              process.stdout.write(String(s.consumed_ref_sha || ""));
+            } catch { process.stdout.write(""); }
+          ')
+          if [ "$EVENT_NAME" = "schedule" ] && [ "$HEAD_SHA" = "$CONSUMED" ]; then
+            echo "::notice::$REF head $HEAD_SHA is already published. Nothing new."
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+            exit 0
           fi
           echo "ref=$REF" >> "$GITHUB_OUTPUT"
 
@@ -257,12 +289,46 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add public/manifest.json "public/snapshots/$DATE"
           if git diff --cached --quiet; then
-            echo "manifest unchanged. Nothing to commit."
-            echo "changed=false" >> "$GITHUB_OUTPUT"
+            echo "manifest unchanged. The site already serves this snapshot."
+            SITE_CHANGED=false
           else
+            SITE_CHANGED=true
+          fi
+          echo "changed=$SITE_CHANGED" >> "$GITHUB_OUTPUT"
+
+          # Record the branch head this run consumed. STE 3 reads it back
+          # and lets the 6-hourly poll skip a head it has already
+          # published, instead of re-validating it until the 48h
+          # freshness rule turns every poll red.
+          #
+          # This is written even when no site file changed, because a
+          # re-run over an already published head is exactly the case
+          # that has to stop repeating.
+          HEAD_SHA=$(git -C snapshot-incoming rev-parse HEAD)
+          CONSUMED_SHA="$HEAD_SHA" CONSUMED_DATE="$DATE" node -e '
+            const fs = require("fs");
+            const state = {
+              note:
+                "The head of snapshots-incoming that CI has already " +
+                "published. The 6-hourly poll skips a head that matches. " +
+                "See .github/workflows/publish-snapshot.yml STE 3 and STE 10.",
+              consumed_ref_sha: process.env.CONSUMED_SHA,
+              consumed_date: process.env.CONSUMED_DATE,
+            };
+            fs.writeFileSync(
+              ".github/snapshot-state.json",
+              JSON.stringify(state, null, 2) + "\n");
+          '
+          git add .github/snapshot-state.json
+
+          if git diff --cached --quiet; then
+            echo "nothing to commit."
+          elif [ "$SITE_CHANGED" = "true" ]; then
             git commit -m "chore(data): publish snapshot $DATE"
             git push
-            echo "changed=true" >> "$GITHUB_OUTPUT"
+          else
+            git commit -m "chore(ci): record consumed snapshot $DATE"
+            git push
           fi
 
       # STE 11: rebuild the site so the map sees the new snapshot.

@@ -97,6 +97,8 @@ A new snapshot travels from the cluster to the site in five steps.
    CI. The primary path is a `repository_dispatch` event of type
    `snapshot-ready`. The fallback path pushes the artifacts to the
    orphan branch `snapshots-incoming`, which CI polls every 6 hours.
+   The poll skips a branch head it has already published, which it
+   records in `.github/snapshot-state.json`.
 3. CI validates the snapshot again with the same script. It rejects
    partial snapshots and any failed rule. It creates the release
    `snapshot-<date>` and uploads `segments.pmtiles`,

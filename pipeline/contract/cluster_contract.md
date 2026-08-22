@@ -300,5 +300,14 @@ the setup for each.
 | `workflow_dispatch` | A human presses the run button in GitHub | Manual reruns and debugging. |
 | Schedule poll | CI checks the `snapshots-incoming` branch head every 6 hours | The fallback path when the cluster can only push by SSH deploy key. |
 
+The cluster leaves the last snapshot on `snapshots-incoming` after CI
+publishes it, so the poll reads the same head again every 6 hours. CI
+records the head it published in `.github/snapshot-state.json` and the
+poll skips a head that matches. Without that record the poll re-validates
+a snapshot that is already live, and fails on `manifest_date_fresh` as
+soon as that snapshot turns 48h old. A `repository_dispatch` and a
+`workflow_dispatch` ignore the record, so a forced republish of the same
+head still works.
+
 The publish workflow (T6) runs the validator on every trigger. It publishes
 only snapshots that pass every rule.

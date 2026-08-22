@@ -1,0 +1,5 @@
+{
+  "note": "The head of snapshots-incoming that CI has already published. The 6-hourly poll skips a head that matches. See .github/workflows/publish-snapshot.yml STE 3 and STE 10.",
+  "consumed_ref_sha": "e8af8aa86d514b7d4b6123b9a0feb5a7c7df42e7",
+  "consumed_date": "2026-08-18"
+}
